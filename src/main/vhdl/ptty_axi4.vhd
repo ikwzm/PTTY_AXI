@@ -411,7 +411,7 @@ begin
         end if;
     end process;
     regs_err_ack <= regs_err_req;
-    regs_ack     <= send_ack   or recv_ack;
+    regs_ack     <= send_ack   or recv_ack or regs_err_ack;
     regs_err     <= send_err   or recv_err;
     regs_rdata   <= send_rdata or recv_rdata;
     -------------------------------------------------------------------------------

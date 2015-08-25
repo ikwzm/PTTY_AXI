@@ -221,7 +221,8 @@ begin
         -- intake_ready : 入力許可信号. buf_ready とリセット時の値が違うことに注意.
         ---------------------------------------------------------------------------
         process (I_CLK, RST)
-            variable next_counter : unsigned(BUF_DEPTH+1 downto 0);
+            variable next_counter :  unsigned(BUF_DEPTH+1 downto 0);
+            variable next_addr    :  unsigned(BUF_DEPTH+1 downto 0);
         begin
             if    (RST = '1') then
                     buf_waddr    <= (others => '0');
@@ -251,7 +252,9 @@ begin
                         intake_ready <= FALSE;
                     end if;
                     if (i_push_valid = '1') then
-                        buf_waddr <= std_logic_vector(unsigned(buf_waddr) + unsigned(i_push_size));
+                        next_addr := "00" & unsigned(buf_waddr);
+                        next_addr := next_addr + resize(unsigned(i_push_size), next_addr'length);
+                        buf_waddr <= std_logic_vector(next_addr(buf_waddr'range));
                     end if;
                 end if;
             end if;
@@ -438,7 +441,8 @@ begin
         -- buf_curr_addr : データが格納されているバッファの先頭アドレス
         ---------------------------------------------------------------------------
         process (S_CLK, RST)
-            variable next_counter : unsigned(BUF_DEPTH+1 downto 0);
+            variable next_counter  : unsigned(BUF_DEPTH+1 downto 0);
+            variable buf_next_addr : unsigned(BUF_DEPTH   downto 0);
         begin
             if    (RST = '1') then
                     buf_counter   <= (others => '0');
@@ -452,15 +456,17 @@ begin
                 else
                     next_counter := "0" & buf_counter;
                     if (s_push_valid = '1') then
-                        next_counter := next_counter + resize(unsigned(s_push_size),next_counter'length);
+                        next_counter := next_counter   + resize(unsigned(s_push_size), next_counter'length);
                     end if;
                     if (PULL_LOAD    = '1') then
-                        next_counter := next_counter - resize(unsigned(  PULL_SIZE),next_counter'length);
+                        next_counter := next_counter   - resize(unsigned(  PULL_SIZE), next_counter'length);
                     end if;
-                    buf_counter <= next_counter(buf_counter'range);
+                    buf_counter   <= next_counter(buf_counter'range);
+                    buf_next_addr := "0" & buf_curr_addr;
                     if (PULL_LOAD    = '1') then
-                        buf_curr_addr <= buf_curr_addr + unsigned(PULL_SIZE);
+                        buf_next_addr := buf_next_addr + resize(unsigned(  PULL_SIZE),buf_next_addr'length);
                     end if;
+                    buf_curr_addr <= buf_next_addr(buf_curr_addr'range);
                     if    (s_push_valid = '1') then
                         BUF_LAST <= s_push_last;
                     elsif (PULL_LOAD    = '1') then

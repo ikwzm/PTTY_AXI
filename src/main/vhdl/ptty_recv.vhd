@@ -251,7 +251,7 @@ architecture RTL of PTTY_RECV is
         variable result : std_logic_vector(    BITS-1 downto 0);
     begin
         for i in result'range loop
-            if vec'high <= i and i <= vec'low then
+            if vec'low <= i and i <= vec'high then
                 result(i) := vec(i);
             else
                 result(i) := '0';
@@ -399,10 +399,10 @@ begin
         elsif (C_CLK'event and C_CLK = '1') then
             if (CLR = '1' or ctrl_reset_bit = '1') then
                 stat_ready_bit <= '0';
-            elsif (ctrl_ready_bit = '1' and unsigned(rbuf_count) > 0) then
-                stat_ready_bit <= '1';
             elsif (regs_load(REGS_STAT_READY_POS) = '1' and regs_wbit(REGS_STAT_READY_POS) = '0') then
                 stat_ready_bit <= '0';
+            elsif (ctrl_ready_bit = '1' and ctrl_pull_bit = '0' and unsigned(rbuf_count) > 0) then
+                stat_ready_bit <= '1';
             end if;
         end if;
     end process;
@@ -411,31 +411,36 @@ begin
     regs_rbit(REGS_STAT_LAST_POS ) <= rbuf_last;
     regs_rbit(REGS_STAT_RESV_HI downto REGS_STAT_RESV_LO) <= (REGS_STAT_RESV_HI downto REGS_STAT_RESV_LO => '0');
     -------------------------------------------------------------------------------
-    -- Control[7:0]
+    -- Control[7] : ctrl_reset_bit
+    -------------------------------------------------------------------------------
+    process (C_CLK, RST) begin
+        if     (RST = '1') then
+                ctrl_reset_bit <= '0';
+        elsif  (C_CLK'event and C_CLK = '1') then
+            if (CLR = '1') then
+                ctrl_reset_bit <= '0';
+            elsif (regs_load(REGS_CTRL_RESET_POS) = '1') then
+                ctrl_reset_bit <= regs_wbit(REGS_CTRL_RESET_POS);
+            end if;
+        end if;
+    end process;
+    regs_rbit(REGS_CTRL_RESET_POS) <= ctrl_reset_bit;
+    -------------------------------------------------------------------------------
+    -- Control[6:0]
     -------------------------------------------------------------------------------
     process (C_CLK, RST) begin
         if (RST = '1') then
-                ctrl_reset_bit <= '0';
                 ctrl_pause_bit <= '0';
                 ctrl_abort_bit <= '0';
                 ctrl_pull_bit  <= '0';
                 ctrl_ready_bit <= '0';
         elsif (C_CLK'event and C_CLK = '1') then
-            if (CLR = '1') then
-                ctrl_reset_bit <= '0';
-                ctrl_pause_bit <= '0';
-                ctrl_abort_bit <= '0';
-                ctrl_pull_bit  <= '0';
-                ctrl_ready_bit <= '0';
-            elsif (ctrl_reset_bit = '1') then
+            if (CLR = '1' or ctrl_reset_bit = '1') then
                 ctrl_pause_bit <= '0';
                 ctrl_abort_bit <= '0';
                 ctrl_pull_bit  <= '0';
                 ctrl_ready_bit <= '0';
             else
-                if (regs_load(REGS_CTRL_RESET_POS) = '1') then
-                    ctrl_reset_bit <= regs_wbit(REGS_CTRL_RESET_POS);
-                end if;
                 if (regs_load(REGS_CTRL_PAUSE_POS) = '1') then
                     ctrl_pause_bit <= regs_wbit(REGS_CTRL_PAUSE_POS);
                 end if;
@@ -458,7 +463,6 @@ begin
     -------------------------------------------------------------------------------
     --
     -------------------------------------------------------------------------------
-    regs_rbit(REGS_CTRL_RESET_POS) <= ctrl_reset_bit;
     regs_rbit(REGS_CTRL_PAUSE_POS) <= ctrl_pause_bit;
     regs_rbit(REGS_CTRL_ABORT_POS) <= ctrl_abort_bit;
     regs_rbit(REGS_CTRL_PULL_POS ) <= ctrl_pull_bit;

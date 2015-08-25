@@ -340,7 +340,7 @@ begin
                 )                                         -- 
                 port map (                                -- 
                     CLK         => O_CLK                , -- In  :
-                    RST         => O_CLK                , -- In  :
+                    RST         => RST                  , -- In  :
                     CLR         => o_reset              , -- In  : 
                     ADDR        => next_addr            , -- In  :
                     SIZE        => next_count           , -- In  :
@@ -582,6 +582,7 @@ begin
         ---------------------------------------------------------------------------
         process (S_CLK, RST)
             variable next_count : unsigned(BUF_DEPTH+1 downto 0);
+            variable next_addr  : unsigned(BUF_DEPTH   downto 0);
         begin
             if    (RST = '1') then
                     curr_count   <= (others => '0');
@@ -600,7 +601,9 @@ begin
                     end if;
                     curr_count <= next_count(curr_count'range);
                     if (PUSH_LOAD    = '1') then
-                        curr_addr <= curr_addr + unsigned(PUSH_SIZE);
+                        next_addr := "0" & curr_addr;
+                        next_addr := next_addr   + resize(unsigned(  PUSH_SIZE), next_addr'length);
+                        curr_addr <= next_addr(curr_addr'range);
                     end if;
                 end if;
             end if;

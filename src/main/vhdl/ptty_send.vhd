@@ -223,7 +223,7 @@ architecture RTL of PTTY_SEND is
     -- Control[5]  = 1:転送を中止する.           0:意味無し.
     -- Control[4]  = 1:転送を開始する.           0:意味無し.
     -- Control[3]  = 予約.
-    -- Control[2]  = 1:バッファが空の時にStatus[0]がセットされる.
+    -- Control[2]  = 1:バッファが空の時にStatus[0]がセットされる. 
     -- Control[1]  = 予約.
     -- Control[0]  = 1:最後の送信であることを指定する.
     -------------------------------------------------------------------------------
@@ -250,7 +250,7 @@ architecture RTL of PTTY_SEND is
         variable result : std_logic_vector(    BITS-1 downto 0);
     begin
         for i in result'range loop
-            if vec'high <= i and i <= vec'low then
+            if vec'low <= i and i <= vec'high then
                 result(i) := vec(i);
             else
                 result(i) := '0';
@@ -376,53 +376,115 @@ begin
     end process;
     regs_rbit(REGS_PUSH_SIZE_HI downto REGS_PUSH_SIZE_LO) <= resize(sbuf_push_size, REGS_PUSH_SIZE_BITS);
     -------------------------------------------------------------------------------
-    -- Status[7:0] (T.B.D)
+    -- Control[2] : ctrl_done_bit
+    -- Status[0]  : stat_done_bit
     -------------------------------------------------------------------------------
-    process (C_CLK, RST) begin
-        if (RST = '1') then
-                stat_done_bit <= '0';
-        elsif (C_CLK'event and C_CLK = '1') then
-            if (CLR = '1' or ctrl_reset_bit = '1') then
-                stat_done_bit <= '0';
-            elsif (ctrl_done_bit = '1' and unsigned(sbuf_count) = 0) then
-                stat_done_bit <= '1';
-            elsif (regs_load(REGS_STAT_DONE_POS) = '1' and regs_wbit(REGS_STAT_DONE_POS) = '0') then
-                stat_done_bit <= '0';
+    DONE: block
+        type      STATE_TYPE   is (IDLE_STATE, PUSH_STATE, WAIT_STATE, DONE_STATE);
+        signal    curr_state   :  STATE_TYPE;
+    begin
+        process (C_CLK, RST)
+            variable  set_ctrl_done :  boolean;
+            variable  clr_ctrl_done :  boolean;
+            variable  clr_stat_done :  boolean;
+            variable  next_state    :  STATE_TYPE;
+        begin
+            if (RST = '1') then
+                    curr_state    <= IDLE_STATE;
+                    ctrl_done_bit <= '0';
+                    stat_done_bit <= '0';
+            elsif (C_CLK'event and C_CLK = '1') then
+                if (CLR = '1' or ctrl_reset_bit = '1') then
+                    curr_state    <= IDLE_STATE;
+                    ctrl_done_bit <= '0';
+                    stat_done_bit <= '0';
+                else
+                    set_ctrl_done := (regs_load(REGS_CTRL_DONE_POS) = '1' and regs_wbit(REGS_CTRL_DONE_POS) = '1');
+                    clr_ctrl_done := (regs_load(REGS_CTRL_DONE_POS) = '1' and regs_wbit(REGS_CTRL_DONE_POS) = '0');
+                    clr_stat_done := (regs_load(REGS_STAT_DONE_POS) = '1' and regs_wbit(REGS_STAT_DONE_POS) = '0');
+                    case curr_state is
+                        when IDLE_STATE =>
+                            if (set_ctrl_done) then
+                                next_state := PUSH_STATE;
+                            else
+                                next_state := IDLE_STATE;
+                            end if;
+                        when PUSH_STATE =>
+                            if (clr_ctrl_done) then
+                                next_state := IDLE_STATE;
+                            else
+                                next_state := WAIT_STATE;
+                            end if;
+                        when WAIT_STATE =>
+                            if    (unsigned(sbuf_count) = 0) then
+                                next_state := DONE_STATE;
+                            elsif (clr_ctrl_done) then
+                                next_state := IDLE_STATE;
+                            else
+                                next_state := WAIT_STATE;
+                            end if;
+                        when DONE_STATE =>
+                            if (clr_stat_done) then
+                                if (set_ctrl_done) then
+                                    next_state := PUSH_STATE;
+                                else
+                                    next_state := IDLE_STATE;
+                                end if;
+                            else
+                                next_state := DONE_STATE;
+                            end if;
+                        when others =>
+                                next_state := IDLE_STATE;
+                    end case;
+                    curr_state <= next_state;
+                    if (next_state = PUSH_STATE or next_state = WAIT_STATE) then
+                        ctrl_done_bit <= '1';
+                    else
+                        ctrl_done_bit <= '0';
+                    end if;
+                    if (next_state = DONE_STATE) then
+                        stat_done_bit <= '1';
+                    else
+                        stat_done_bit <= '0';
+                    end if;
+                end if;
             end if;
-        end if;
-    end process;
+        end process;
+    end block;
     C_IRQ <= '1' when (stat_done_bit = '1') else '0';
     regs_rbit(REGS_STAT_DONE_POS) <= stat_done_bit;
     regs_rbit(REGS_STAT_RESV_HI downto REGS_STAT_RESV_LO) <= (REGS_STAT_RESV_HI downto REGS_STAT_RESV_LO => '0');
     -------------------------------------------------------------------------------
-    -- Control[7:0]
+    -- Control[7] : ctrl_reset_bit
+    -------------------------------------------------------------------------------
+    process (C_CLK, RST) begin
+        if     (RST = '1') then
+                ctrl_reset_bit <= '0';
+        elsif  (C_CLK'event and C_CLK = '1') then
+            if (CLR = '1') then
+                ctrl_reset_bit <= '0';
+            elsif (regs_load(REGS_CTRL_RESET_POS) = '1') then
+                ctrl_reset_bit <= regs_wbit(REGS_CTRL_RESET_POS);
+            end if;
+        end if;
+    end process;
+    regs_rbit(REGS_CTRL_RESET_POS) <= ctrl_reset_bit;
+    -------------------------------------------------------------------------------
+    -- Control[6:0] : 
     -------------------------------------------------------------------------------
     process (C_CLK, RST) begin
         if (RST = '1') then
-                ctrl_reset_bit <= '0';
                 ctrl_pause_bit <= '0';
                 ctrl_abort_bit <= '0';
                 ctrl_push_bit  <= '0';
-                ctrl_done_bit  <= '0';
                 ctrl_last_bit  <= '0';
         elsif (C_CLK'event and C_CLK = '1') then
-            if (CLR = '1') then
-                ctrl_reset_bit <= '0';
+            if (CLR = '1' or ctrl_reset_bit = '1') then
                 ctrl_pause_bit <= '0';
                 ctrl_abort_bit <= '0';
                 ctrl_push_bit  <= '0';
-                ctrl_done_bit  <= '0';
-                ctrl_last_bit  <= '0';
-            elsif (ctrl_reset_bit = '1') then
-                ctrl_pause_bit <= '0';
-                ctrl_abort_bit <= '0';
-                ctrl_push_bit  <= '0';
-                ctrl_done_bit  <= '0';
                 ctrl_last_bit  <= '0';
             else
-                if (regs_load(REGS_CTRL_RESET_POS) = '1') then
-                    ctrl_reset_bit <= regs_wbit(REGS_CTRL_RESET_POS);
-                end if;
                 if (regs_load(REGS_CTRL_PAUSE_POS) = '1') then
                     ctrl_pause_bit <= regs_wbit(REGS_CTRL_PAUSE_POS);
                 end if;
@@ -436,19 +498,12 @@ begin
                 else
                     ctrl_push_bit  <= '0';
                 end if;
-                if (regs_load(REGS_CTRL_DONE_POS ) = '1') then
-                    ctrl_done_bit  <= regs_wbit(REGS_CTRL_DONE_POS );
-                end if;
                 if (regs_load(REGS_CTRL_LAST_POS ) = '1') then
                     ctrl_last_bit  <= regs_wbit(REGS_CTRL_LAST_POS );
                 end if;
             end if;
         end if;
     end process;
-    -------------------------------------------------------------------------------
-    --
-    -------------------------------------------------------------------------------
-    regs_rbit(REGS_CTRL_RESET_POS) <= ctrl_reset_bit;
     regs_rbit(REGS_CTRL_PAUSE_POS) <= ctrl_pause_bit;
     regs_rbit(REGS_CTRL_ABORT_POS) <= ctrl_abort_bit;
     regs_rbit(REGS_CTRL_PUSH_POS ) <= ctrl_push_bit;

@@ -622,7 +622,8 @@ begin
     end process;
 
     ARESETn <= '1' when (RESET = '0') else '0';
-    C_GPI   <= C_GPO;
+    C_GPI(0)<= C_IRQ;
+    C_GPI(C_GPI'high downto 1) <= C_GPO(C_GPI'high downto 1);
     I_GPI   <= C_GPO;
     I_GPI   <= C_GPO;
     process
