@@ -62,22 +62,22 @@
       RESP: OKAY
       TIMEOUT: 100
   - READ :
-      ADDR: 0x00002000
+      ADDR: 0x00000C00
       DATA: 0x03020100
       RESP: OKAY
       TIMEOUT: 100
   - READ :
-      ADDR: 0x00002004
+      ADDR: 0x00000C04
       DATA: 0x07060504
       RESP: OKAY
       TIMEOUT: 100
   - READ :
-      ADDR: 0x00002008
+      ADDR: 0x00000C08
       DATA: 0x0B0A0908
       RESP: OKAY
       TIMEOUT: 100
   - READ :
-      ADDR: 0x0000200C
+      ADDR: 0x00000C0C
       DATA: 0x0F0E0D0C
       RESP: OKAY
       TIMEOUT: 100

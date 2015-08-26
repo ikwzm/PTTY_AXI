@@ -203,10 +203,10 @@ architecture RTL of PTTY_AXI4 is
     constant SEND_REG_AREA_HI   :  integer := 16#0017#;
     constant RECV_REG_AREA_LO   :  integer := 16#0020#;
     constant RECV_REG_AREA_HI   :  integer := 16#0027#;
-    constant SEND_BUF_AREA_LO   :  integer := 16#1000#;
-    constant SEND_BUF_AREA_HI   :  integer := 16#1FFF#;
-    constant RECV_BUF_AREA_LO   :  integer := 16#2000#;
-    constant RECV_BUF_AREA_HI   :  integer := 16#2FFF#;
+    constant SEND_BUF_AREA_LO   :  integer := 16#0800#;
+    constant SEND_BUF_AREA_HI   :  integer := 16#0BFF#;
+    constant RECV_BUF_AREA_LO   :  integer := 16#0C00#;
+    constant RECV_BUF_AREA_HI   :  integer := 16#0FFF#;
     -------------------------------------------------------------------------------
     -- PTTY_TX
     -------------------------------------------------------------------------------

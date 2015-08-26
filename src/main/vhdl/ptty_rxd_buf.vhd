@@ -80,7 +80,7 @@ entity  PTTY_RXD_BUF is
                       in  std_logic_vector(8*I_BYTES-1 downto 0);
         I_STRB      : --! @brief INTAKE STROBE :
                       --! 入力側データ
-                      in  std_logic_vector(  I_BYTES-1 downto 0);
+                      in  std_logic_vector(  I_BYTES-1 downto 0) := (others => '1');
         I_LAST      : --! @brief INTAKE LAST :
                       --! 入力側データ
                       in  std_logic;
@@ -181,7 +181,8 @@ begin
         -- 入力側のデータ幅が１バイトの場合...
         ---------------------------------------------------------------------------
         I1: if (I_BYTES = 1) generate
-            i_push_size  <= std_logic_vector(to_unsigned(1, i_push_size'length));
+            i_push_size  <= std_logic_vector(to_unsigned(1, i_push_size'length)) when I_STRB(0) = '1' else
+                            std_logic_vector(to_unsigned(0, i_push_size'length));
             i_push_last  <= I_LAST;
             i_push_valid <= '1' when (I_VALID = '1' and buf_ready) else '0';
             I_READY      <= '1' when (intake_ready) else '0';
@@ -196,16 +197,19 @@ begin
             -----------------------------------------------------------------------
             -- buf_we    : バッファ書き込みイネーブル信号(バイト単位)
             -----------------------------------------------------------------------
-            process (buf_waddr, i_push_valid) begin
+            process (buf_waddr, i_push_valid, I_STRB) begin
                 for i in buf_we'range loop
                     if (BUF_WIDTH > 0) then
-                        if i_push_valid = '1' and i = to_01(unsigned(buf_waddr(BUF_WIDTH-1 downto 0))) then
+                        if (i_push_valid = '1') and
+                           (I_STRB(0)    = '1') and
+                           (i = to_01(unsigned(buf_waddr(BUF_WIDTH-1 downto 0)))) then
                             buf_we(i) <= '1';
                         else
                             buf_we(i) <= '0';
                         end if;
                     else
-                        if (i_push_valid = '1') then
+                        if (i_push_valid = '1') and
+                           (I_STRB(0)    = '1') then
                             buf_we(i) <= '1';
                         else
                             buf_we(i) <= '0';
