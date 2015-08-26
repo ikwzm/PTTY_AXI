@@ -1,8 +1,8 @@
 -----------------------------------------------------------------------------------
---!     @file    ptty_send
---!     @brief   PTTY SEND CORE
+--!     @file    ptty_tx
+--!     @brief   PTTY Transimit Data Core
 --!     @version 0.1.0
---!     @date    2015/8/20
+--!     @date    2015/8/26
 --!     @author  Ichiro Kawazome <ichiro_k@ca2.so-net.ne.jp>
 -----------------------------------------------------------------------------------
 --
@@ -39,27 +39,27 @@ use     ieee.std_logic_1164.all;
 -----------------------------------------------------------------------------------
 --
 -----------------------------------------------------------------------------------
-entity  PTTY_SEND is
+entity  PTTY_TX is
     generic (
-        SBUF_DEPTH      : --! @brief BUFFER DEPTH :
+        TXD_BUF_DEPTH   : --! @brief TRANSMIT DATA BUFFER DEPTH :
                           --! バッファの容量(バイト数)を２のべき乗値で指定する.
                           integer range 4 to    9 :=  7;
-        C_ADDR_WIDTH    : --! @brief REGISTER INTERFACE ADDRESS WIDTH :
+        CSR_ADDR_WIDTH  : --! @brief REGISTER INTERFACE ADDRESS WIDTH :
                           --! レジスタアクセスのアドレスのビット幅を指定する.
                           integer range 1 to   64 := 32;
-        C_DATA_WIDTH    : --! @brief REGISTER INTERFACE DATA WIDTH :
+        CSR_DATA_WIDTH  : --! @brief REGISTER INTERFACE DATA WIDTH :
                           --! レジスタアクセスのデータのビット幅を指定する.
                           integer range 8 to 1024 := 32;
-        O_BYTES         : --! @brief OUTLET DATA WIDTH :
+        TXD_BYTES       : --! @brief TRANSMIT DATA WIDTH :
                           --! 出力側のデータ幅(バイト数)を指定する.
                           integer := 1;
-        O_CLK_RATE      : --! @brief OUTLET CLOCK RATE :
-                          --! C_CLK_RATEとペアで出力側のクロック(O_CLK)とレジスタ
-                          --! アクセス側のクロック(C_CLK)との関係を指定する.
+        TXD_CLK_RATE    : --! @brief TRANSMIT DATA CLOCK RATE :
+                          --! CSR_CLK_RATEとペアで出力側のクロック(TXD_CLK)とレジス
+                          --! タアクセス側のクロック(CSR_CLK)との関係を指定する.
                           integer := 1;
-        C_CLK_RATE      : --! @brief REGISTER INTERFACE CLOCK RATE :
-                          --! O_CLK_RATEとペアで出力側のクロック(O_CLK)とレジスタ
-                          --! アクセス側のクロック(C_CLK)との関係を指定する.
+        CSR_CLK_RATE    : --! @brief REGISTER INTERFACE CLOCK RATE :
+                          --! TXD_CLK_RATEとペアで出力側のクロック(TXD_CLK)とレジス
+                          --! タアクセス側のクロック(CSR_CLK)との関係を指定する.
                           integer := 1
     );
     port (
@@ -71,56 +71,56 @@ entity  PTTY_SEND is
     -------------------------------------------------------------------------------
     -- Control Status Register Access Interface
     -------------------------------------------------------------------------------
-        C_CLK           : --! @breif REGISTER INTERFACE CLOCK :
+        CSR_CLK         : --! @breif REGISTER INTERFACE CLOCK :
                           in  std_logic;
-        C_CKE           : --! @breif REGISTER INTERFACE CLOCK ENABLE:
+        CSR_CKE         : --! @breif REGISTER INTERFACE CLOCK ENABLE:
                           in  std_logic;
-        C_ADDR          : --! @breif REGISTER ADDRESS :
-                          in  std_logic_vector(C_ADDR_WIDTH  -1 downto 0);
-        C_BEN           : --! @breif REGISTER BYTE ENABLE :
-                          in  std_logic_vector(C_DATA_WIDTH/8-1 downto 0);
-        C_WDATA         : --! @breif REGISTER WRITE DATA :
-                          in  std_logic_vector(C_DATA_WIDTH  -1 downto 0);
-        C_RDATA         : --! @breif REGISTER READ DATA :
-                          out std_logic_vector(C_DATA_WIDTH  -1 downto 0);
-        C_REG_REQ       : --! @breif REGISTER ACCESS REQUEST :
+        CSR_ADDR        : --! @breif REGISTER ADDRESS :
+                          in  std_logic_vector(CSR_ADDR_WIDTH  -1 downto 0);
+        CSR_BEN         : --! @breif REGISTER BYTE ENABLE :
+                          in  std_logic_vector(CSR_DATA_WIDTH/8-1 downto 0);
+        CSR_WDATA       : --! @breif REGISTER WRITE DATA :
+                          in  std_logic_vector(CSR_DATA_WIDTH  -1 downto 0);
+        CSR_RDATA       : --! @breif REGISTER READ DATA :
+                          out std_logic_vector(CSR_DATA_WIDTH  -1 downto 0);
+        CSR_REG_REQ     : --! @breif REGISTER ACCESS REQUEST :
                           in  std_logic;
-        C_BUF_REQ       : --! @breif REGISTER ACCESS REQUEST :
+        CSR_BUF_REQ     : --! @breif REGISTER ACCESS REQUEST :
                           in  std_logic;
-        C_WRITE         : --! @breif REGISTER ACCESS WRITE  :
+        CSR_WRITE       : --! @breif REGISTER ACCESS WRITE  :
                           in  std_logic;
-        C_ACK           : --! @breif REGISTER ACCESS ACKNOWLEDGE :
+        CSR_ACK         : --! @breif REGISTER ACCESS ACKNOWLEDGE :
                           out std_logic;
-        C_ERR           : --! @breif REGISTER ACCESS ERROR ACKNOWLEDGE :
+        CSR_ERR         : --! @breif REGISTER ACCESS ERROR ACKNOWLEDGE :
                           out std_logic;
-        C_IRQ           : --! @breif INTERRUPT
+        CSR_IRQ         : --! @breif INTERRUPT
                           out std_logic;
     -------------------------------------------------------------------------------
     -- 出力側の信号
     -------------------------------------------------------------------------------
-        O_CLK           : --! @brief OUTLET CLOCK :
+        TXD_CLK         : --! @brief TRANSMIT CLOCK :
                           --! 出力側のクロック信号.
                           in  std_logic;
-        O_CKE           : --! @brief OUTLET CLOCK ENABLE :
+        TXD_CKE         : --! @brief TRANSMIT CLOCK ENABLE :
                           --! 出力側のクロック(I_CLK)の立上りが有効であることを示す信号.
                           in  std_logic;
-        O_DATA          : --! @brief OUTLET DATA :
+        TXD_DATA        : --! @brief TRANSMIT DATA :
                           --! 出力側データ
-                          out std_logic_vector(8*O_BYTES-1 downto 0);
-        O_STRB          : --! @brief OUTLET STROBE :
+                          out std_logic_vector(8*TXD_BYTES-1 downto 0);
+        TXD_STRB        : --! @brief TRANSMIT STROBE :
                           --! 出力側データ
-                          out std_logic_vector(  O_BYTES-1 downto 0);
-        O_LAST          : --! @brief OUTLET LAST :
+                          out std_logic_vector(  TXD_BYTES-1 downto 0);
+        TXD_LAST        : --! @brief TRANSMIT LAST :
                           --! 出力側データ
                           out std_logic;
-        O_VALID         : --! @brief OUTLET ENABLE :
+        TXD_VALID       : --! @brief TRANSMIT ENABLE :
                           --! 出力有効信号.
                           out std_logic;
-        O_READY         : --! @brief OUTLET READY :
+        TXD_READY       : --! @brief TRANSMIT READY :
                           --! 出力許可信号.
                           in  std_logic
     );
-end PTTY_SEND;
+end PTTY_TX;
 -----------------------------------------------------------------------------------
 -- アーキテクチャ本体
 -----------------------------------------------------------------------------------
@@ -129,20 +129,20 @@ use     ieee.std_logic_1164.all;
 use     ieee.numeric_std.all;
 library PIPEWORK;
 use     PIPEWORK.COMPONENTS.REGISTER_ACCESS_ADAPTER;
-architecture RTL of PTTY_SEND is
+architecture RTL of PTTY_TX is
     -------------------------------------------------------------------------------
-    -- SBUF_WIDTH : 送信バッファのデータ幅のバイト数を２のべき乗で示した値.
+    -- TXD_BUF_WIDTH : 送信バッファのデータ幅のバイト数を２のべき乗で示した値.
     -------------------------------------------------------------------------------
-    function   CALC_SBUF_WIDTH return integer is
+    function   CALC_TXD_BUF_WIDTH return integer is
         variable width : integer;
     begin
         width := 0;
-        while (2**(width+3) < C_DATA_WIDTH) loop
+        while (2**(width+3) < CSR_DATA_WIDTH) loop
             width := width + 1;
         end loop;
         return width;
     end function;
-    constant   SBUF_WIDTH         :  integer := CALC_SBUF_WIDTH;
+    constant   TXD_BUF_WIDTH         :  integer := CALC_TXD_BUF_WIDTH;
     -------------------------------------------------------------------------------
     -- レジスタアクセスインターフェースのアドレスのビット数.
     -------------------------------------------------------------------------------
@@ -154,21 +154,21 @@ architecture RTL of PTTY_SEND is
     -------------------------------------------------------------------------------
     -- レジスタアクセス用の信号群.
     -------------------------------------------------------------------------------
-    signal     regs_addr          :  std_logic_vector(REGS_ADDR_WIDTH  -1 downto 0);
-    signal     regs_rdata         :  std_logic_vector(C_DATA_WIDTH     -1 downto 0);
+    signal     regs_addr          :  std_logic_vector(REGS_ADDR_WIDTH   -1 downto 0);
+    signal     regs_rdata         :  std_logic_vector(CSR_DATA_WIDTH    -1 downto 0);
     signal     regs_ack           :  std_logic;
     signal     regs_err           :  std_logic;
-    signal     regs_load          :  std_logic_vector(REGS_DATA_BITS   -1 downto 0);
-    signal     regs_wbit          :  std_logic_vector(REGS_DATA_BITS   -1 downto 0);
-    signal     regs_rbit          :  std_logic_vector(REGS_DATA_BITS   -1 downto 0);
+    signal     regs_load          :  std_logic_vector(REGS_DATA_BITS    -1 downto 0);
+    signal     regs_wbit          :  std_logic_vector(REGS_DATA_BITS    -1 downto 0);
+    signal     regs_rbit          :  std_logic_vector(REGS_DATA_BITS    -1 downto 0);
     -------------------------------------------------------------------------------
     -- バッファアクセス用の信号群.
     -------------------------------------------------------------------------------
-    signal     sbuf_we            :  std_logic_vector(2**(SBUF_WIDTH  )-1 downto 0);
-    signal     sbuf_addr          :  std_logic_vector(SBUF_DEPTH       -1 downto 0);
+    signal     sbuf_we            :  std_logic_vector(2**(TXD_BUF_WIDTH)-1 downto 0);
+    signal     sbuf_addr          :  std_logic_vector(TXD_BUF_DEPTH     -1 downto 0);
     constant   sbuf_ack           :  std_logic := '1';
     constant   sbuf_err           :  std_logic := '0';
-    constant   sbuf_rdata         :  std_logic_vector(C_DATA_WIDTH     -1 downto 0) := (others => '0');
+    constant   sbuf_rdata         :  std_logic_vector(CSR_DATA_WIDTH    -1 downto 0) := (others => '0');
     -------------------------------------------------------------------------------
     -- レジスタのアドレスマップ.
     -------------------------------------------------------------------------------
@@ -187,7 +187,7 @@ architecture RTL of PTTY_SEND is
     constant   REGS_BUF_COUNT_BITS:  integer := 16;
     constant   REGS_BUF_COUNT_LO  :  integer := 8*REGS_BUF_COUNT_ADDR + 0;
     constant   REGS_BUF_COUNT_HI  :  integer := 8*REGS_BUF_COUNT_ADDR + REGS_BUF_COUNT_BITS-1;
-    signal     sbuf_count         :  std_logic_vector(SBUF_DEPTH   downto 0);
+    signal     sbuf_count         :  std_logic_vector(TXD_BUF_DEPTH   downto 0);
     -------------------------------------------------------------------------------
     -- BufPtr[15:0]
     -------------------------------------------------------------------------------
@@ -195,7 +195,7 @@ architecture RTL of PTTY_SEND is
     constant   REGS_BUF_PTR_BITS  :  integer := 16;
     constant   REGS_BUF_PTR_LO    :  integer := 8*REGS_BUF_PTR_ADDR   + 0;
     constant   REGS_BUF_PTR_HI    :  integer := 8*REGS_BUF_PTR_ADDR   + REGS_BUF_PTR_BITS-1;
-    signal     sbuf_ptr           :  std_logic_vector(SBUF_DEPTH-1 downto 0);
+    signal     sbuf_ptr           :  std_logic_vector(TXD_BUF_DEPTH-1 downto 0);
     -------------------------------------------------------------------------------
     -- PushSize[15:0]
     -------------------------------------------------------------------------------
@@ -203,7 +203,7 @@ architecture RTL of PTTY_SEND is
     constant   REGS_PUSH_SIZE_BITS:  integer := 16;
     constant   REGS_PUSH_SIZE_LO  :  integer := 8*REGS_PUSH_SIZE_ADDR + 0;
     constant   REGS_PUSH_SIZE_HI  :  integer := 8*REGS_PUSH_SIZE_ADDR + REGS_PUSH_SIZE_BITS-1;
-    signal     sbuf_push_size     :  std_logic_vector(SBUF_DEPTH   downto 0);
+    signal     sbuf_push_size     :  std_logic_vector(TXD_BUF_DEPTH   downto 0);
     -------------------------------------------------------------------------------
     -- Status[7:0]
     -------------------------------------------------------------------------------
@@ -261,7 +261,7 @@ architecture RTL of PTTY_SEND is
     -------------------------------------------------------------------------------
     --
     -------------------------------------------------------------------------------
-    component  SEND_BUF is
+    component  PTTY_TXD_BUF is
         generic (
             BUF_DEPTH   : integer := 8;
             BUF_WIDTH   : integer := 2;
@@ -297,28 +297,28 @@ begin
     -------------------------------------------------------------------------------
     --
     -------------------------------------------------------------------------------
-    regs_addr <= C_ADDR(regs_addr'range);
+    regs_addr <= CSR_ADDR(regs_addr'range);
     -------------------------------------------------------------------------------
     --
     -------------------------------------------------------------------------------
-    sbuf_addr <= C_ADDR(sbuf_addr'range);
-    sbuf_we   <= C_BEN when (C_BUF_REQ = '1' and C_WRITE = '1') else (others => '0');
+    sbuf_addr <= CSR_ADDR(sbuf_addr'range);
+    sbuf_we   <= CSR_BEN when (CSR_BUF_REQ = '1' and CSR_WRITE = '1') else (others => '0');
     -------------------------------------------------------------------------------
     --
     -------------------------------------------------------------------------------
-    C_RDATA   <= regs_rdata when (C_REG_REQ = '1') else
-                 sbuf_rdata when (C_BUF_REQ = '1') else (others => '0');
-    C_ACK     <= '1'        when (C_REG_REQ = '1' and regs_ack = '1') or
-                                 (C_BUF_REQ = '1' and sbuf_ack = '1') else '0';
-    C_ERR     <= '1'        when (C_REG_REQ = '1' and regs_err = '1') or
-                                 (C_BUF_REQ = '1' and sbuf_err = '1') else '0';
+    CSR_RDATA   <= regs_rdata when (CSR_REG_REQ = '1') else
+                   sbuf_rdata when (CSR_BUF_REQ = '1') else (others => '0');
+    CSR_ACK     <= '1'        when (CSR_REG_REQ = '1' and regs_ack = '1') or
+                                   (CSR_BUF_REQ = '1' and sbuf_ack = '1') else '0';
+    CSR_ERR     <= '1'        when (CSR_REG_REQ = '1' and regs_err = '1') or
+                                   (CSR_BUF_REQ = '1' and sbuf_err = '1') else '0';
     -------------------------------------------------------------------------------
     -- 
     -------------------------------------------------------------------------------
     DEC: REGISTER_ACCESS_ADAPTER                               -- 
         generic map (                                          -- 
             ADDR_WIDTH      => REGS_ADDR_WIDTH               , -- 
-            DATA_WIDTH      => C_DATA_WIDTH                  , -- 
+            DATA_WIDTH      => CSR_DATA_WIDTH                , -- 
             WBIT_MIN        => regs_wbit'low                 , -- 
             WBIT_MAX        => regs_wbit'high                , -- 
             RBIT_MIN        => regs_rbit'low                 , -- 
@@ -329,19 +329,19 @@ begin
         )                                                      -- 
         port map (                                             -- 
             RST             => RST                           , -- In  :
-            I_CLK           => C_CLK                         , -- In  :
+            I_CLK           => CSR_CLK                       , -- In  :
             I_CLR           => CLR                           , -- In  :
             I_CKE           => '1'                           , -- In  :
-            I_REQ           => C_REG_REQ                     , -- In  :
+            I_REQ           => CSR_REG_REQ                   , -- In  :
             I_SEL           => '1'                           , -- In  :
-            I_WRITE         => C_WRITE                       , -- In  :
+            I_WRITE         => CSR_WRITE                     , -- In  :
             I_ADDR          => regs_addr                     , -- In  :
-            I_BEN           => C_BEN                         , -- In  :
-            I_WDATA         => C_WDATA                       , -- In  :
+            I_BEN           => CSR_BEN                       , -- In  :
+            I_WDATA         => CSR_WDATA                     , -- In  :
             I_RDATA         => regs_rdata                    , -- Out :
             I_ACK           => regs_ack                      , -- Out :
             I_ERR           => regs_err                      , -- Out :
-            O_CLK           => C_CLK                         , -- In  :
+            O_CLK           => CSR_CLK                       , -- In  :
             O_CLR           => CLR                           , -- In  :
             O_CKE           => '1'                           , -- In  :
             O_WDATA         => regs_wbit                     , -- Out :
@@ -359,10 +359,10 @@ begin
     -------------------------------------------------------------------------------
     -- PushSize[15:0]
     -------------------------------------------------------------------------------
-    process (C_CLK, RST) begin
+    process (CSR_CLK, RST) begin
         if (RST = '1') then
                 sbuf_push_size <= (others => '0');
-        elsif (C_CLK'event and C_CLK = '1') then
+        elsif (CSR_CLK'event and CSR_CLK = '1') then
             if (CLR = '1' or ctrl_reset_bit = '1') then
                 sbuf_push_size <= (others => '0');
             else
@@ -383,7 +383,7 @@ begin
         type      STATE_TYPE   is (IDLE_STATE, PUSH_STATE, WAIT_STATE, DONE_STATE);
         signal    curr_state   :  STATE_TYPE;
     begin
-        process (C_CLK, RST)
+        process (CSR_CLK, RST)
             variable  set_ctrl_done :  boolean;
             variable  clr_ctrl_done :  boolean;
             variable  clr_stat_done :  boolean;
@@ -393,7 +393,7 @@ begin
                     curr_state    <= IDLE_STATE;
                     ctrl_done_bit <= '0';
                     stat_done_bit <= '0';
-            elsif (C_CLK'event and C_CLK = '1') then
+            elsif (CSR_CLK'event and CSR_CLK = '1') then
                 if (CLR = '1' or ctrl_reset_bit = '1') then
                     curr_state    <= IDLE_STATE;
                     ctrl_done_bit <= '0';
@@ -451,16 +451,16 @@ begin
             end if;
         end process;
     end block;
-    C_IRQ <= '1' when (stat_done_bit = '1') else '0';
+    CSR_IRQ <= '1' when (stat_done_bit = '1') else '0';
     regs_rbit(REGS_STAT_DONE_POS) <= stat_done_bit;
     regs_rbit(REGS_STAT_RESV_HI downto REGS_STAT_RESV_LO) <= (REGS_STAT_RESV_HI downto REGS_STAT_RESV_LO => '0');
     -------------------------------------------------------------------------------
     -- Control[7] : ctrl_reset_bit
     -------------------------------------------------------------------------------
-    process (C_CLK, RST) begin
+    process (CSR_CLK, RST) begin
         if     (RST = '1') then
                 ctrl_reset_bit <= '0';
-        elsif  (C_CLK'event and C_CLK = '1') then
+        elsif  (CSR_CLK'event and CSR_CLK = '1') then
             if (CLR = '1') then
                 ctrl_reset_bit <= '0';
             elsif (regs_load(REGS_CTRL_RESET_POS) = '1') then
@@ -472,13 +472,13 @@ begin
     -------------------------------------------------------------------------------
     -- Control[6:0] : 
     -------------------------------------------------------------------------------
-    process (C_CLK, RST) begin
+    process (CSR_CLK, RST) begin
         if (RST = '1') then
                 ctrl_pause_bit <= '0';
                 ctrl_abort_bit <= '0';
                 ctrl_push_bit  <= '0';
                 ctrl_last_bit  <= '0';
-        elsif (C_CLK'event and C_CLK = '1') then
+        elsif (CSR_CLK'event and CSR_CLK = '1') then
             if (CLR = '1' or ctrl_reset_bit = '1') then
                 ctrl_pause_bit <= '0';
                 ctrl_abort_bit <= '0';
@@ -514,26 +514,26 @@ begin
     -------------------------------------------------------------------------------
     --
     -------------------------------------------------------------------------------
-    BUF: SEND_BUF                                              -- 
+    BUF: PTTY_TXD_BUF                                          -- 
         generic map (                                          -- 
-            BUF_DEPTH       => SBUF_DEPTH                    , --
-            BUF_WIDTH       => SBUF_WIDTH                    , --
-            O_BYTES         => O_BYTES                       , --
-            O_CLK_RATE      => O_CLK_RATE                    , --
-            S_CLK_RATE      => C_CLK_RATE                      --
+            BUF_DEPTH       => TXD_BUF_DEPTH                 , --
+            BUF_WIDTH       => TXD_BUF_WIDTH                 , --
+            O_BYTES         => TXD_BYTES                     , --
+            O_CLK_RATE      => TXD_CLK_RATE                  , --
+            S_CLK_RATE      => CSR_CLK_RATE                    --
         )                                                      -- 
         port map (                                             -- 
             RST             => RST                           , -- In  :
-            O_CLK           => O_CLK                         , -- In  :
-            O_CKE           => O_CKE                         , -- In  :
-            O_DATA          => O_DATA                        , -- Out :
-            O_STRB          => O_STRB                        , -- Out :
-            O_LAST          => O_LAST                        , -- Out :
-            O_VALID         => O_VALID                       , -- Out :
-            O_READY         => O_READY                       , -- In  :
-            S_CLK           => C_CLK                         , -- In  :
-            S_CKE           => C_CKE                         , -- In  :
-            BUF_WDATA       => C_WDATA                       , -- In  :
+            O_CLK           => TXD_CLK                       , -- In  :
+            O_CKE           => TXD_CKE                       , -- In  :
+            O_DATA          => TXD_DATA                      , -- Out :
+            O_STRB          => TXD_STRB                      , -- Out :
+            O_LAST          => TXD_LAST                      , -- Out :
+            O_VALID         => TXD_VALID                     , -- Out :
+            O_READY         => TXD_READY                     , -- In  :
+            S_CLK           => CSR_CLK                       , -- In  :
+            S_CKE           => CSR_CKE                       , -- In  :
+            BUF_WDATA       => CSR_WDATA                     , -- In  :
             BUF_WE          => sbuf_we                       , -- In  :
             BUF_WADDR       => sbuf_addr                     , -- In  :
             BUF_COUNT       => sbuf_count                    , -- Out :

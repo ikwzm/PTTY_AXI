@@ -1,8 +1,8 @@
 -----------------------------------------------------------------------------------
---!     @file    send_buf.vhd
---!     @brief   Send Buffer for PTTY_AXI4
+--!     @file    ptty_txd_buf.vhd
+--!     @brief   Transimit Data Buffer for PTTY_AXI4
 --!     @version 0.1.0
---!     @date    2015/8/20
+--!     @date    2015/8/26
 --!     @author  Ichiro Kawazome <ichiro_k@ca2.so-net.ne.jp>
 -----------------------------------------------------------------------------------
 --
@@ -39,7 +39,7 @@ use     ieee.std_logic_1164.all;
 -----------------------------------------------------------------------------------
 --! @brief 送信バッファ
 -----------------------------------------------------------------------------------
-entity  SEND_BUF is
+entity  PTTY_TXD_BUF is
     generic (
         BUF_DEPTH   : --! @brief BUFFER DEPTH :
                       --! バッファの容量(バイト数)を２のべき乗値で指定する.
@@ -135,7 +135,7 @@ entity  SEND_BUF is
                       --! リセットデータロード信号.
                       in  std_logic
     );
-end SEND_BUF;
+end PTTY_TXD_BUF;
 -----------------------------------------------------------------------------------
 -- 
 -----------------------------------------------------------------------------------
@@ -149,7 +149,7 @@ use     PIPEWORK.COMPONENTS.CHOPPER;
 use     PIPEWORK.COMPONENTS.QUEUE_REGISTER;
 use     PIPEWORK.COMPONENTS.SYNCRONIZER;
 use     PIPEWORK.COMPONENTS.SYNCRONIZER_INPUT_PENDING_REGISTER;
-architecture RTL of SEND_BUF is
+architecture RTL of PTTY_TXD_BUF is
     -------------------------------------------------------------------------------
     -- バッファ読み出し制御信号
     -------------------------------------------------------------------------------
@@ -275,7 +275,7 @@ begin
             -----------------------------------------------------------------------
             -- next_count : 次のクロックでのバッファに格納されているバイト数
             -----------------------------------------------------------------------
-            process (curr_count, buf_valid, buf_ready, word_size, o_push_valid, o_push_size)
+            process (curr_count, buf_valid, buf_ready, word_size, o_push_valid, o_push_size, o_reset)
                 variable temp_count : unsigned(BUF_DEPTH+1 downto 0);
             begin
                 temp_count := to_01("0" & unsigned(curr_count));

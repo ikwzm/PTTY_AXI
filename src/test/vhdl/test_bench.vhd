@@ -65,13 +65,13 @@ architecture MODEL of TEST_BENCH is
     -------------------------------------------------------------------------------
     -- 各種定数
     -------------------------------------------------------------------------------
-    constant C_CLK_PERIOD    : time    := 10 ns;
-    constant I_CLK_PERIOD    : time    := 10 ns;
-    constant O_CLK_PERIOD    : time    := 10 ns;
+    constant CSR_CLK_PERIOD  : time    := 10 ns;
+    constant RXD_CLK_PERIOD  : time    := 10 ns;
+    constant TXD_CLK_PERIOD  : time    := 10 ns;
     constant DELAY           : time    :=  1 ns;
     constant AXI4_ADDR_WIDTH : integer := 32;
     constant AXI4_DATA_WIDTH : integer := 32;
-    constant C_WIDTH         : AXI4_SIGNAL_WIDTH_TYPE := (
+    constant CSR_WIDTH       : AXI4_SIGNAL_WIDTH_TYPE := (
                                  ID          => 4,
                                  AWADDR      => AXI4_ADDR_WIDTH,
                                  ARADDR      => AXI4_ADDR_WIDTH,
@@ -84,91 +84,91 @@ architecture MODEL of TEST_BENCH is
                                  WUSER       => 1,
                                  RUSER       => 1,
                                  BUSER       => 1);
-    constant I_BYTES         : integer :=  1;
-    constant I_WIDTH         : AXI4_STREAM_SIGNAL_WIDTH_TYPE := (
+    constant RXD_BYTES       : integer :=  1;
+    constant RXD_WIDTH       : AXI4_STREAM_SIGNAL_WIDTH_TYPE := (
                                  ID          => 4,
                                  USER        => 4,
                                  DEST        => 4,
-                                 DATA        => 8*I_BYTES);
-    constant O_BYTES         : integer :=  1;
-    constant O_WIDTH         : AXI4_STREAM_SIGNAL_WIDTH_TYPE := (
+                                 DATA        => 8*RXD_BYTES);
+    constant TXD_BYTES       : integer :=  1;
+    constant TXD_WIDTH       : AXI4_STREAM_SIGNAL_WIDTH_TYPE := (
                                  ID          => 4,
                                  USER        => 4,
                                  DEST        => 4,
-                                 DATA        => 8*O_BYTES);
+                                 DATA        => 8*TXD_BYTES);
     constant SYNC_WIDTH      : integer :=  2;
     constant GPO_WIDTH       : integer :=  8;
     constant GPI_WIDTH       : integer :=  GPO_WIDTH;
-    constant SBUF_DEPTH      : integer :=  8;
-    constant RBUF_DEPTH      : integer :=  8;
+    constant TXD_BUF_DEPTH   : integer :=  8;
+    constant RXD_BUF_DEPTH   : integer :=  8;
     -------------------------------------------------------------------------------
     -- グローバルシグナル.
     -------------------------------------------------------------------------------
-    signal   C_CLK           : std_logic;
+    signal   CSR_CLK         : std_logic;
     signal   ARESETn         : std_logic;
     signal   RESET           : std_logic;
-    signal   C_IRQ           : std_logic;
+    signal   CSR_IRQ         : std_logic;
     ------------------------------------------------------------------------------
     -- リードアドレスチャネルシグナル.
     ------------------------------------------------------------------------------
-    signal   C_ARADDR        : std_logic_vector(C_WIDTH.ARADDR -1 downto 0);
-    signal   C_ARWRITE       : std_logic;
-    signal   C_ARLEN         : std_logic_vector(C_WIDTH.ALEN   -1 downto 0);
-    signal   C_ARSIZE        : AXI4_ASIZE_TYPE;
-    signal   C_ARBURST       : AXI4_ABURST_TYPE;
-    signal   C_ARLOCK        : std_logic_vector(C_WIDTH.ALOCK  -1 downto 0);
-    signal   C_ARCACHE       : AXI4_ACACHE_TYPE;
-    signal   C_ARPROT        : AXI4_APROT_TYPE;
-    signal   C_ARQOS         : AXI4_AQOS_TYPE;
-    signal   C_ARREGION      : AXI4_AREGION_TYPE;
-    signal   C_ARUSER        : std_logic_vector(C_WIDTH.ARUSER -1 downto 0);
-    signal   C_ARID          : std_logic_vector(C_WIDTH.ID     -1 downto 0);
-    signal   C_ARVALID       : std_logic;
-    signal   C_ARREADY       : std_logic;
+    signal   CSR_ARADDR      : std_logic_vector(CSR_WIDTH.ARADDR -1 downto 0);
+    signal   CSR_ARWRITE     : std_logic;
+    signal   CSR_ARLEN       : std_logic_vector(CSR_WIDTH.ALEN   -1 downto 0);
+    signal   CSR_ARSIZE      : AXI4_ASIZE_TYPE;
+    signal   CSR_ARBURST     : AXI4_ABURST_TYPE;
+    signal   CSR_ARLOCK      : std_logic_vector(CSR_WIDTH.ALOCK  -1 downto 0);
+    signal   CSR_ARCACHE     : AXI4_ACACHE_TYPE;
+    signal   CSR_ARPROT      : AXI4_APROT_TYPE;
+    signal   CSR_ARQOS       : AXI4_AQOS_TYPE;
+    signal   CSR_ARREGION    : AXI4_AREGION_TYPE;
+    signal   CSR_ARUSER      : std_logic_vector(CSR_WIDTH.ARUSER -1 downto 0);
+    signal   CSR_ARID        : std_logic_vector(CSR_WIDTH.ID     -1 downto 0);
+    signal   CSR_ARVALID     : std_logic;
+    signal   CSR_ARREADY     : std_logic;
     -------------------------------------------------------------------------------
     -- リードデータチャネルシグナル.
     -------------------------------------------------------------------------------
-    signal   C_RVALID        : std_logic;
-    signal   C_RLAST         : std_logic;
-    signal   C_RDATA         : std_logic_vector(C_WIDTH.RDATA  -1 downto 0);
-    signal   C_RRESP         : AXI4_RESP_TYPE;
-    signal   C_RUSER         : std_logic_vector(C_WIDTH.RUSER  -1 downto 0);
-    signal   C_RID           : std_logic_vector(C_WIDTH.ID     -1 downto 0);
-    signal   C_RREADY        : std_logic;
+    signal   CSR_RVALID      : std_logic;
+    signal   CSR_RLAST       : std_logic;
+    signal   CSR_RDATA       : std_logic_vector(CSR_WIDTH.RDATA  -1 downto 0);
+    signal   CSR_RRESP       : AXI4_RESP_TYPE;
+    signal   CSR_RUSER       : std_logic_vector(CSR_WIDTH.RUSER  -1 downto 0);
+    signal   CSR_RID         : std_logic_vector(CSR_WIDTH.ID     -1 downto 0);
+    signal   CSR_RREADY      : std_logic;
     -------------------------------------------------------------------------------
     -- ライトアドレスチャネルシグナル.
     -------------------------------------------------------------------------------
-    signal   C_AWADDR        : std_logic_vector(C_WIDTH.AWADDR -1 downto 0);
-    signal   C_AWLEN         : std_logic_vector(C_WIDTH.ALEN   -1 downto 0);
-    signal   C_AWSIZE        : AXI4_ASIZE_TYPE;
-    signal   C_AWBURST       : AXI4_ABURST_TYPE;
-    signal   C_AWLOCK        : std_logic_vector(C_WIDTH.ALOCK  -1 downto 0);
-    signal   C_AWCACHE       : AXI4_ACACHE_TYPE;
-    signal   C_AWPROT        : AXI4_APROT_TYPE;
-    signal   C_AWQOS         : AXI4_AQOS_TYPE;
-    signal   C_AWREGION      : AXI4_AREGION_TYPE;
-    signal   C_AWUSER        : std_logic_vector(C_WIDTH.AWUSER -1 downto 0);
-    signal   C_AWID          : std_logic_vector(C_WIDTH.ID     -1 downto 0);
-    signal   C_AWVALID       : std_logic;
-    signal   C_AWREADY       : std_logic;
+    signal   CSR_AWADDR      : std_logic_vector(CSR_WIDTH.AWADDR -1 downto 0);
+    signal   CSR_AWLEN       : std_logic_vector(CSR_WIDTH.ALEN   -1 downto 0);
+    signal   CSR_AWSIZE      : AXI4_ASIZE_TYPE;
+    signal   CSR_AWBURST     : AXI4_ABURST_TYPE;
+    signal   CSR_AWLOCK      : std_logic_vector(CSR_WIDTH.ALOCK  -1 downto 0);
+    signal   CSR_AWCACHE     : AXI4_ACACHE_TYPE;
+    signal   CSR_AWPROT      : AXI4_APROT_TYPE;
+    signal   CSR_AWQOS       : AXI4_AQOS_TYPE;
+    signal   CSR_AWREGION    : AXI4_AREGION_TYPE;
+    signal   CSR_AWUSER      : std_logic_vector(CSR_WIDTH.AWUSER -1 downto 0);
+    signal   CSR_AWID        : std_logic_vector(CSR_WIDTH.ID     -1 downto 0);
+    signal   CSR_AWVALID     : std_logic;
+    signal   CSR_AWREADY     : std_logic;
     -------------------------------------------------------------------------------
     -- ライトデータチャネルシグナル.
     -------------------------------------------------------------------------------
-    signal   C_WLAST         : std_logic;
-    signal   C_WDATA         : std_logic_vector(C_WIDTH.WDATA  -1 downto 0);
-    signal   C_WSTRB         : std_logic_vector(C_WIDTH.WDATA/8-1 downto 0);
-    signal   C_WUSER         : std_logic_vector(C_WIDTH.WUSER  -1 downto 0);
-    signal   C_WID           : std_logic_vector(C_WIDTH.ID     -1 downto 0);
-    signal   C_WVALID        : std_logic;
-    signal   C_WREADY        : std_logic;
+    signal   CSR_WLAST       : std_logic;
+    signal   CSR_WDATA       : std_logic_vector(CSR_WIDTH.WDATA  -1 downto 0);
+    signal   CSR_WSTRB       : std_logic_vector(CSR_WIDTH.WDATA/8-1 downto 0);
+    signal   CSR_WUSER       : std_logic_vector(CSR_WIDTH.WUSER  -1 downto 0);
+    signal   CSR_WID         : std_logic_vector(CSR_WIDTH.ID     -1 downto 0);
+    signal   CSR_WVALID      : std_logic;
+    signal   CSR_WREADY      : std_logic;
     -------------------------------------------------------------------------------
     -- ライト応答チャネルシグナル.
     -------------------------------------------------------------------------------
-    signal   C_BRESP         : AXI4_RESP_TYPE;
-    signal   C_BUSER         : std_logic_vector(C_WIDTH.BUSER  -1 downto 0);
-    signal   C_BID           : std_logic_vector(C_WIDTH.ID     -1 downto 0);
-    signal   C_BVALID        : std_logic;
-    signal   C_BREADY        : std_logic;
+    signal   CSR_BRESP       : AXI4_RESP_TYPE;
+    signal   CSR_BUSER       : std_logic_vector(CSR_WIDTH.BUSER  -1 downto 0);
+    signal   CSR_BID         : std_logic_vector(CSR_WIDTH.ID     -1 downto 0);
+    signal   CSR_BVALID      : std_logic;
+    signal   CSR_BREADY      : std_logic;
     -------------------------------------------------------------------------------
     -- シンクロ用信号
     -------------------------------------------------------------------------------
@@ -176,103 +176,103 @@ architecture MODEL of TEST_BENCH is
     -------------------------------------------------------------------------------
     -- 
     -------------------------------------------------------------------------------
-    signal   I_CLK           : std_logic;
-    signal   I_DATA          : std_logic_vector(I_WIDTH.DATA   -1 downto 0);
-    signal   I_STRB          : std_logic_vector(I_WIDTH.DATA/8 -1 downto 0);
-    signal   I_LAST          : std_logic;
-    signal   I_VALID         : std_logic;
-    signal   I_READY         : std_logic;
+    signal   RXD_CLK         : std_logic;
+    signal   RXD_TDATA       : std_logic_vector(RXD_WIDTH.DATA   -1 downto 0);
+    signal   RXD_TSTRB       : std_logic_vector(RXD_WIDTH.DATA/8 -1 downto 0);
+    signal   RXD_TLAST       : std_logic;
+    signal   RXD_TVALID      : std_logic;
+    signal   RXD_TREADY      : std_logic;
     -------------------------------------------------------------------------------
     -- 
     -------------------------------------------------------------------------------
-    signal   O_CLK           : std_logic;
-    signal   O_DATA          : std_logic_vector(O_WIDTH.DATA   -1 downto 0);
-    signal   O_STRB          : std_logic_vector(O_WIDTH.DATA/8 -1 downto 0);
-    constant O_KEEP          : std_logic_vector(O_WIDTH.DATA/8 -1 downto 0) := (others => '1');
-    constant O_USER          : std_logic_vector(O_WIDTH.USER   -1 downto 0) := (others => '0');
-    constant O_DEST          : std_logic_vector(O_WIDTH.DEST   -1 downto 0) := (others => '0');
-    constant O_ID            : std_logic_vector(O_WIDTH.ID     -1 downto 0) := (others => '0');
-    signal   O_LAST          : std_logic;
-    signal   O_VALID         : std_logic;
-    signal   O_READY         : std_logic;
+    signal   TXD_CLK         : std_logic;
+    signal   TXD_TDATA       : std_logic_vector(TXD_WIDTH.DATA   -1 downto 0);
+    signal   TXD_TSTRB       : std_logic_vector(TXD_WIDTH.DATA/8 -1 downto 0);
+    constant TXD_TKEEP       : std_logic_vector(TXD_WIDTH.DATA/8 -1 downto 0) := (others => '1');
+    constant TXD_TUSER       : std_logic_vector(TXD_WIDTH.USER   -1 downto 0) := (others => '0');
+    constant TXD_TDEST       : std_logic_vector(TXD_WIDTH.DEST   -1 downto 0) := (others => '0');
+    constant TXD_TID         : std_logic_vector(TXD_WIDTH.ID     -1 downto 0) := (others => '0');
+    signal   TXD_TLAST       : std_logic;
+    signal   TXD_TVALID      : std_logic;
+    signal   TXD_TREADY      : std_logic;
     -------------------------------------------------------------------------------
     -- GPIO(General Purpose Input/Output)
     -------------------------------------------------------------------------------
-    signal   C_GPI           : std_logic_vector(GPI_WIDTH      -1 downto 0);
-    signal   C_GPO           : std_logic_vector(GPO_WIDTH      -1 downto 0);
-    signal   I_GPI           : std_logic_vector(GPI_WIDTH      -1 downto 0);
-    signal   I_GPO           : std_logic_vector(GPO_WIDTH      -1 downto 0);
-    signal   O_GPI           : std_logic_vector(GPI_WIDTH      -1 downto 0);
-    signal   O_GPO           : std_logic_vector(GPO_WIDTH      -1 downto 0);
+    signal   CSR_GPI         : std_logic_vector(GPI_WIDTH      -1 downto 0);
+    signal   CSR_GPO         : std_logic_vector(GPO_WIDTH      -1 downto 0);
+    signal   RXD_GPI         : std_logic_vector(GPI_WIDTH      -1 downto 0);
+    signal   RXD_GPO         : std_logic_vector(GPO_WIDTH      -1 downto 0);
+    signal   TXD_GPI         : std_logic_vector(GPI_WIDTH      -1 downto 0);
+    signal   TXD_GPO         : std_logic_vector(GPO_WIDTH      -1 downto 0);
     -------------------------------------------------------------------------------
     -- 各種状態出力.
     -------------------------------------------------------------------------------
     signal   N_REPORT        : REPORT_STATUS_TYPE;
-    signal   C_REPORT        : REPORT_STATUS_TYPE;
-    signal   I_REPORT        : REPORT_STATUS_TYPE;
-    signal   O_REPORT        : REPORT_STATUS_TYPE;
+    signal   CSR_REPORT      : REPORT_STATUS_TYPE;
+    signal   RXD_REPORT      : REPORT_STATUS_TYPE;
+    signal   TXD_REPORT      : REPORT_STATUS_TYPE;
     signal   N_FINISH        : std_logic;
-    signal   C_FINISH        : std_logic;
-    signal   I_FINISH        : std_logic;
-    signal   O_FINISH        : std_logic;
+    signal   CSR_FINISH      : std_logic;
+    signal   RXD_FINISH      : std_logic;
+    signal   TXD_FINISH      : std_logic;
     -------------------------------------------------------------------------------
     -- 
     -------------------------------------------------------------------------------
     component PTTY_AXI4
         generic (
-            SBUF_DEPTH      : integer range  4 to    9 :=  7;
-            RBUF_DEPTH      : integer range  4 to    9 :=  7;
-            C_ADDR_WIDTH    : integer range 12 to   64 := 12;
-            C_DATA_WIDTH    : integer range  8 to 1024 := 32;
-            C_ID_WIDTH      : integer                  :=  8;
-            I_BYTES         : integer range  1 to    1 :=  1;
-            O_BYTES         : integer range  1 to    1 :=  1
+            TXD_BUF_DEPTH    : integer range  4 to    9 :=  7;
+            RXD_BUF_DEPTH    : integer range  4 to    9 :=  7;
+            CSR_ADDR_WIDTH   : integer range 12 to   64 := 12;
+            CSR_DATA_WIDTH   : integer range  8 to 1024 := 32;
+            CSR_ID_WIDTH     : integer                  :=  8;
+            RXD_BYTES        : integer range  1 to    1 :=  1;
+            TXD_BYTES        : integer range  1 to    1 :=  1
         );
         port (
-            ARESETn         : in    std_logic;
-            C_CLK           : in    std_logic;
-            C_ARID          : in    std_logic_vector(C_ID_WIDTH    -1 downto 0);
-            C_ARADDR        : in    std_logic_vector(C_ADDR_WIDTH  -1 downto 0);
-            C_ARLEN         : in    std_logic_vector(7 downto 0);
-            C_ARSIZE        : in    std_logic_vector(2 downto 0);
-            C_ARBURST       : in    std_logic_vector(1 downto 0);
-            C_ARVALID       : in    std_logic;
-            C_ARREADY       : out   std_logic;
-            C_RID           : out   std_logic_vector(C_ID_WIDTH    -1 downto 0);
-            C_RDATA         : out   std_logic_vector(C_DATA_WIDTH  -1 downto 0);
-            C_RRESP         : out   std_logic_vector(1 downto 0);
-            C_RLAST         : out   std_logic;
-            C_RVALID        : out   std_logic;
-            C_RREADY        : in    std_logic;
-            C_AWID          : in    std_logic_vector(C_ID_WIDTH    -1 downto 0);
-            C_AWADDR        : in    std_logic_vector(C_ADDR_WIDTH  -1 downto 0);
-            C_AWLEN         : in    std_logic_vector(7 downto 0);
-            C_AWSIZE        : in    std_logic_vector(2 downto 0);
-            C_AWBURST       : in    std_logic_vector(1 downto 0);
-            C_AWVALID       : in    std_logic;
-            C_AWREADY       : out   std_logic;
-            C_WDATA         : in    std_logic_vector(C_DATA_WIDTH  -1 downto 0);
-            C_WSTRB         : in    std_logic_vector(C_DATA_WIDTH/8-1 downto 0);
-            C_WLAST         : in    std_logic;
-            C_WVALID        : in    std_logic;
-            C_WREADY        : out   std_logic;
-            C_BID           : out   std_logic_vector(C_ID_WIDTH    -1 downto 0);
-            C_BRESP         : out   std_logic_vector(1 downto 0);
-            C_BVALID        : out   std_logic;
-            C_BREADY        : in    std_logic;
-            C_IRQ           : out   std_logic;
-            I_CLK           : in    std_logic;
-            I_DATA          : in    std_logic_vector(8*I_BYTES-1 downto 0);
-            I_STRB          : in    std_logic_vector(  I_BYTES-1 downto 0);
-            I_LAST          : in    std_logic;
-            I_VALID         : in    std_logic;
-            I_READY         : out   std_logic;
-            O_CLK           : in    std_logic;
-            O_DATA          : out   std_logic_vector(8*O_BYTES-1 downto 0);
-            O_STRB          : out   std_logic_vector(  O_BYTES-1 downto 0);
-            O_LAST          : out   std_logic;
-            O_VALID         : out   std_logic;
-            O_READY         : in    std_logic
+            ARESETn          : in    std_logic;
+            CSR_CLK          : in    std_logic;
+            CSR_ARID         : in    std_logic_vector(CSR_ID_WIDTH    -1 downto 0);
+            CSR_ARADDR       : in    std_logic_vector(CSR_ADDR_WIDTH  -1 downto 0);
+            CSR_ARLEN        : in    std_logic_vector(7 downto 0);
+            CSR_ARSIZE       : in    std_logic_vector(2 downto 0);
+            CSR_ARBURST      : in    std_logic_vector(1 downto 0);
+            CSR_ARVALID      : in    std_logic;
+            CSR_ARREADY      : out   std_logic;
+            CSR_RID          : out   std_logic_vector(CSR_ID_WIDTH    -1 downto 0);
+            CSR_RDATA        : out   std_logic_vector(CSR_DATA_WIDTH  -1 downto 0);
+            CSR_RRESP        : out   std_logic_vector(1 downto 0);
+            CSR_RLAST        : out   std_logic;
+            CSR_RVALID       : out   std_logic;
+            CSR_RREADY       : in    std_logic;
+            CSR_AWID         : in    std_logic_vector(CSR_ID_WIDTH    -1 downto 0);
+            CSR_AWADDR       : in    std_logic_vector(CSR_ADDR_WIDTH  -1 downto 0);
+            CSR_AWLEN        : in    std_logic_vector(7 downto 0);
+            CSR_AWSIZE       : in    std_logic_vector(2 downto 0);
+            CSR_AWBURST      : in    std_logic_vector(1 downto 0);
+            CSR_AWVALID      : in    std_logic;
+            CSR_AWREADY      : out   std_logic;
+            CSR_WDATA        : in    std_logic_vector(CSR_DATA_WIDTH  -1 downto 0);
+            CSR_WSTRB        : in    std_logic_vector(CSR_DATA_WIDTH/8-1 downto 0);
+            CSR_WLAST        : in    std_logic;
+            CSR_WVALID       : in    std_logic;
+            CSR_WREADY       : out   std_logic;
+            CSR_BID          : out   std_logic_vector(CSR_ID_WIDTH    -1 downto 0);
+            CSR_BRESP        : out   std_logic_vector(1 downto 0);
+            CSR_BVALID       : out   std_logic;
+            CSR_BREADY       : in    std_logic;
+            CSR_IRQ          : out   std_logic;
+            RXD_CLK          : in    std_logic;
+            RXD_TDATA        : in    std_logic_vector(8*RXD_BYTES-1 downto 0);
+            RXD_TSTRB        : in    std_logic_vector(  RXD_BYTES-1 downto 0);
+            RXD_TLAST        : in    std_logic;
+            RXD_TVALID       : in    std_logic;
+            RXD_TREADY       : out   std_logic;
+            TXD_CLK          : in    std_logic;
+            TXD_TDATA        : out   std_logic_vector(8*TXD_BYTES-1 downto 0);
+            TXD_TSTRB        : out   std_logic_vector(  TXD_BYTES-1 downto 0);
+            TXD_TLAST        : out   std_logic;
+            TXD_TVALID       : out   std_logic;
+            TXD_TREADY       : in    std_logic
         );
     end component;
 begin
@@ -288,7 +288,7 @@ begin
             FINISH_ABORT    => FALSE
         )
         port map(
-            CLK             => C_CLK           , -- In  :
+            CLK             => CSR_CLK         , -- In  :
             RESET           => RESET           , -- In  :
             SYNC(0)         => SYNC(0)         , -- I/O :
             SYNC(1)         => SYNC(1)         , -- I/O :
@@ -305,7 +305,7 @@ begin
             READ_ENABLE     => TRUE            ,
             WRITE_ENABLE    => TRUE            ,
             OUTPUT_DELAY    => DELAY           ,
-            WIDTH           => C_WIDTH         ,
+            WIDTH           => CSR_WIDTH       ,
             SYNC_PLUG_NUM   => 2               ,
             SYNC_WIDTH      => SYNC_WIDTH      ,
             GPI_WIDTH       => GPI_WIDTH       ,
@@ -316,68 +316,68 @@ begin
         ---------------------------------------------------------------------------
         -- グローバルシグナル.
         ---------------------------------------------------------------------------
-            ACLK            => C_CLK           , -- In  :
+            ACLK            => CSR_CLK         , -- In  :
             ARESETn         => ARESETn         , -- In  :
         ---------------------------------------------------------------------------
         -- リードアドレスチャネルシグナル.
         ---------------------------------------------------------------------------
-            ARADDR          => C_ARADDR        , -- I/O : 
-            ARLEN           => C_ARLEN         , -- I/O : 
-            ARSIZE          => C_ARSIZE        , -- I/O : 
-            ARBURST         => C_ARBURST       , -- I/O : 
-            ARLOCK          => C_ARLOCK        , -- I/O : 
-            ARCACHE         => C_ARCACHE       , -- I/O : 
-            ARPROT          => C_ARPROT        , -- I/O : 
-            ARQOS           => C_ARQOS         , -- I/O : 
-            ARREGION        => C_ARREGION      , -- I/O : 
-            ARUSER          => C_ARUSER        , -- I/O : 
-            ARID            => C_ARID          , -- I/O : 
-            ARVALID         => C_ARVALID       , -- I/O : 
-            ARREADY         => C_ARREADY       , -- In  :    
+            ARADDR          => CSR_ARADDR      , -- I/O : 
+            ARLEN           => CSR_ARLEN       , -- I/O : 
+            ARSIZE          => CSR_ARSIZE      , -- I/O : 
+            ARBURST         => CSR_ARBURST     , -- I/O : 
+            ARLOCK          => CSR_ARLOCK      , -- I/O : 
+            ARCACHE         => CSR_ARCACHE     , -- I/O : 
+            ARPROT          => CSR_ARPROT      , -- I/O : 
+            ARQOS           => CSR_ARQOS       , -- I/O : 
+            ARREGION        => CSR_ARREGION    , -- I/O : 
+            ARUSER          => CSR_ARUSER      , -- I/O : 
+            ARID            => CSR_ARID        , -- I/O : 
+            ARVALID         => CSR_ARVALID     , -- I/O : 
+            ARREADY         => CSR_ARREADY     , -- In  :    
         ---------------------------------------------------------------------------
         -- リードデータチャネルシグナル.
         ---------------------------------------------------------------------------
-            RLAST           => C_RLAST         , -- In  :    
-            RDATA           => C_RDATA         , -- In  :    
-            RRESP           => C_RRESP         , -- In  :    
-            RUSER           => C_RUSER         , -- In  :    
-            RID             => C_RID           , -- In  :    
-            RVALID          => C_RVALID        , -- In  :    
-            RREADY          => C_RREADY        , -- I/O : 
+            RLAST           => CSR_RLAST       , -- In  :    
+            RDATA           => CSR_RDATA       , -- In  :    
+            RRESP           => CSR_RRESP       , -- In  :    
+            RUSER           => CSR_RUSER       , -- In  :    
+            RID             => CSR_RID         , -- In  :    
+            RVALID          => CSR_RVALID      , -- In  :    
+            RREADY          => CSR_RREADY      , -- I/O : 
         --------------------------------------------------------------------------
         -- ライトアドレスチャネルシグナル.
         --------------------------------------------------------------------------
-            AWADDR          => C_AWADDR        , -- I/O : 
-            AWLEN           => C_AWLEN         , -- I/O : 
-            AWSIZE          => C_AWSIZE        , -- I/O : 
-            AWBURST         => C_AWBURST       , -- I/O : 
-            AWLOCK          => C_AWLOCK        , -- I/O : 
-            AWCACHE         => C_AWCACHE       , -- I/O : 
-            AWPROT          => C_AWPROT        , -- I/O : 
-            AWQOS           => C_AWQOS         , -- I/O : 
-            AWREGION        => C_AWREGION      , -- I/O : 
-            AWUSER          => C_AWUSER        , -- I/O : 
-            AWID            => C_AWID          , -- I/O : 
-            AWVALID         => C_AWVALID       , -- I/O : 
-            AWREADY         => C_AWREADY       , -- In  :    
+            AWADDR          => CSR_AWADDR      , -- I/O : 
+            AWLEN           => CSR_AWLEN       , -- I/O : 
+            AWSIZE          => CSR_AWSIZE      , -- I/O : 
+            AWBURST         => CSR_AWBURST     , -- I/O : 
+            AWLOCK          => CSR_AWLOCK      , -- I/O : 
+            AWCACHE         => CSR_AWCACHE     , -- I/O : 
+            AWPROT          => CSR_AWPROT      , -- I/O : 
+            AWQOS           => CSR_AWQOS       , -- I/O : 
+            AWREGION        => CSR_AWREGION    , -- I/O : 
+            AWUSER          => CSR_AWUSER      , -- I/O : 
+            AWID            => CSR_AWID        , -- I/O : 
+            AWVALID         => CSR_AWVALID     , -- I/O : 
+            AWREADY         => CSR_AWREADY     , -- In  :    
         --------------------------------------------------------------------------
         -- ライトデータチャネルシグナル.
         --------------------------------------------------------------------------
-            WLAST           => C_WLAST         , -- I/O : 
-            WDATA           => C_WDATA         , -- I/O : 
-            WSTRB           => C_WSTRB         , -- I/O : 
-            WUSER           => C_WUSER         , -- I/O : 
-            WID             => C_WID           , -- I/O : 
-            WVALID          => C_WVALID        , -- I/O : 
-            WREADY          => C_WREADY        , -- In  :    
+            WLAST           => CSR_WLAST       , -- I/O : 
+            WDATA           => CSR_WDATA       , -- I/O : 
+            WSTRB           => CSR_WSTRB       , -- I/O : 
+            WUSER           => CSR_WUSER       , -- I/O : 
+            WID             => CSR_WID         , -- I/O : 
+            WVALID          => CSR_WVALID      , -- I/O : 
+            WREADY          => CSR_WREADY      , -- In  :    
         --------------------------------------------------------------------------
         -- ライト応答チャネルシグナル.
         --------------------------------------------------------------------------
-            BRESP           => C_BRESP         , -- In  :    
-            BUSER           => C_BUSER         , -- In  :    
-            BID             => C_BID           , -- In  :    
-            BVALID          => C_BVALID        , -- In  :    
-            BREADY          => C_BREADY        , -- I/O : 
+            BRESP           => CSR_BRESP       , -- In  :    
+            BUSER           => CSR_BUSER       , -- In  :    
+            BID             => CSR_BID         , -- In  :    
+            BVALID          => CSR_BVALID      , -- In  :    
+            BREADY          => CSR_BREADY      , -- I/O : 
         --------------------------------------------------------------------------
         -- シンクロ用信号
         --------------------------------------------------------------------------
@@ -386,13 +386,13 @@ begin
         --------------------------------------------------------------------------
         -- GPIO
         --------------------------------------------------------------------------
-            GPI             => C_GPI           , -- In  :
-            GPO             => C_GPO           , -- Out :
+            GPI             => CSR_GPI         , -- In  :
+            GPO             => CSR_GPO         , -- Out :
         --------------------------------------------------------------------------
         -- 各種状態出力.
         --------------------------------------------------------------------------
-            REPORT_STATUS   => C_REPORT        , -- Out :
-            FINISH          => C_FINISH          -- Out :
+            REPORT_STATUS   => CSR_REPORT      , -- Out :
+            FINISH          => CSR_FINISH        -- Out :
         );
     -------------------------------------------------------------------------------
     -- AXI4_SIGNAL_PRINTER
@@ -403,7 +403,7 @@ begin
             TAG             => NAME            , --
             TAG_WIDTH       => 0               , -- 
             TIME_WIDTH      => 13              , --
-            WIDTH           => C_WIDTH         , -- 
+            WIDTH           => CSR_WIDTH       , -- 
             READ_ENABLE     => TRUE            , -- 
             WRITE_ENABLE    => TRUE              --
         )                                        -- 
@@ -411,242 +411,242 @@ begin
         ---------------------------------------------------------------------------
         -- グローバルシグナル.
         ---------------------------------------------------------------------------
-            ACLK            => C_CLK           , -- In  :
+            ACLK            => CSR_CLK         , -- In  :
             ARESETn         => ARESETn         , -- In  :
         ---------------------------------------------------------------------------
         -- リードアドレスチャネルシグナル.
         ---------------------------------------------------------------------------
-            ARADDR          => C_ARADDR        , -- In  :
-            ARLEN           => C_ARLEN         , -- In  :
-            ARSIZE          => C_ARSIZE        , -- In  :
-            ARBURST         => C_ARBURST       , -- In  :
-            ARLOCK          => C_ARLOCK        , -- In  :
-            ARCACHE         => C_ARCACHE       , -- In  :
-            ARPROT          => C_ARPROT        , -- In  :
-            ARQOS           => C_ARQOS         , -- In  :
-            ARREGION        => C_ARREGION      , -- In  :
-            ARUSER          => C_ARUSER        , -- In  :
-            ARID            => C_ARID          , -- In  :
-            ARVALID         => C_ARVALID       , -- In  :
-            ARREADY         => C_ARREADY       , -- In  :
+            ARADDR          => CSR_ARADDR      , -- In  :
+            ARLEN           => CSR_ARLEN       , -- In  :
+            ARSIZE          => CSR_ARSIZE      , -- In  :
+            ARBURST         => CSR_ARBURST     , -- In  :
+            ARLOCK          => CSR_ARLOCK      , -- In  :
+            ARCACHE         => CSR_ARCACHE     , -- In  :
+            ARPROT          => CSR_ARPROT      , -- In  :
+            ARQOS           => CSR_ARQOS       , -- In  :
+            ARREGION        => CSR_ARREGION    , -- In  :
+            ARUSER          => CSR_ARUSER      , -- In  :
+            ARID            => CSR_ARID        , -- In  :
+            ARVALID         => CSR_ARVALID     , -- In  :
+            ARREADY         => CSR_ARREADY     , -- In  :
         ---------------------------------------------------------------------------
         -- リードチャネルシグナル.
         ---------------------------------------------------------------------------
-            RLAST           => C_RLAST         , -- In  :
-            RDATA           => C_RDATA         , -- In  :
-            RRESP           => C_RRESP         , -- In  :
-            RUSER           => C_RUSER         , -- In  :
-            RID             => C_RID           , -- In  :
-            RVALID          => C_RVALID        , -- In  :
-            RREADY          => C_RREADY        , -- In  :
+            RLAST           => CSR_RLAST       , -- In  :
+            RDATA           => CSR_RDATA       , -- In  :
+            RRESP           => CSR_RRESP       , -- In  :
+            RUSER           => CSR_RUSER       , -- In  :
+            RID             => CSR_RID         , -- In  :
+            RVALID          => CSR_RVALID      , -- In  :
+            RREADY          => CSR_RREADY      , -- In  :
         ---------------------------------------------------------------------------
         -- ライトアドレスチャネルシグナル.
         ---------------------------------------------------------------------------
-            AWADDR          => C_AWADDR        , -- In  :
-            AWLEN           => C_AWLEN         , -- In  :
-            AWSIZE          => C_AWSIZE        , -- In  :
-            AWBURST         => C_AWBURST       , -- In  :
-            AWLOCK          => C_AWLOCK        , -- In  :
-            AWCACHE         => C_AWCACHE       , -- In  :
-            AWPROT          => C_AWPROT        , -- In  :
-            AWQOS           => C_AWQOS         , -- In  :
-            AWREGION        => C_AWREGION      , -- In  :
-            AWUSER          => C_AWUSER        , -- In  :
-            AWID            => C_AWID          , -- In  :
-            AWVALID         => C_AWVALID       , -- In  :
-            AWREADY         => C_AWREADY       , -- In  :
+            AWADDR          => CSR_AWADDR      , -- In  :
+            AWLEN           => CSR_AWLEN       , -- In  :
+            AWSIZE          => CSR_AWSIZE      , -- In  :
+            AWBURST         => CSR_AWBURST     , -- In  :
+            AWLOCK          => CSR_AWLOCK      , -- In  :
+            AWCACHE         => CSR_AWCACHE     , -- In  :
+            AWPROT          => CSR_AWPROT      , -- In  :
+            AWQOS           => CSR_AWQOS       , -- In  :
+            AWREGION        => CSR_AWREGION    , -- In  :
+            AWUSER          => CSR_AWUSER      , -- In  :
+            AWID            => CSR_AWID        , -- In  :
+            AWVALID         => CSR_AWVALID     , -- In  :
+            AWREADY         => CSR_AWREADY     , -- In  :
         ---------------------------------------------------------------------------
         -- ライトデータチャネルシグナル.
         ---------------------------------------------------------------------------
-            WLAST           => C_WLAST         , -- In  :
-            WDATA           => C_WDATA         , -- In  :
-            WSTRB           => C_WSTRB         , -- In  :
-            WUSER           => C_WUSER         , -- In  :
-            WID             => C_WID           , -- In  :
-            WVALID          => C_WVALID        , -- In  :
-            WREADY          => C_WREADY        , -- In  :
+            WLAST           => CSR_WLAST       , -- In  :
+            WDATA           => CSR_WDATA       , -- In  :
+            WSTRB           => CSR_WSTRB       , -- In  :
+            WUSER           => CSR_WUSER       , -- In  :
+            WID             => CSR_WID         , -- In  :
+            WVALID          => CSR_WVALID      , -- In  :
+            WREADY          => CSR_WREADY      , -- In  :
         ---------------------------------------------------------------------------
         -- ライト応答チャネルシグナル.
         ---------------------------------------------------------------------------
-            BRESP           => C_BRESP         , -- In  :
-            BUSER           => C_BUSER         , -- In  :
-            BID             => C_BID           , -- In  :
-            BVALID          => C_BVALID        , -- In  :
-            BREADY          => C_BREADY          -- In  :
+            BRESP           => CSR_BRESP       , -- In  :
+            BUSER           => CSR_BUSER       , -- In  :
+            BID             => CSR_BID         , -- In  :
+            BVALID          => CSR_BVALID      , -- In  :
+            BREADY          => CSR_BREADY        -- In  :
     );
     -------------------------------------------------------------------------------
     -- 
     -------------------------------------------------------------------------------
-    I: AXI4_STREAM_MASTER_PLAYER                 -- 
+    RXD: AXI4_STREAM_MASTER_PLAYER               -- 
         generic map (                            -- 
             SCENARIO_FILE   => SCENARIO_FILE   , --
-            NAME            => "I"             , --
+            NAME            => "RXD"           , --
             OUTPUT_DELAY    => DELAY           , --
             SYNC_PLUG_NUM   => 3               , --
-            WIDTH           => I_WIDTH         , --
+            WIDTH           => RXD_WIDTH       , --
             SYNC_WIDTH      => SYNC_WIDTH      , --
             GPI_WIDTH       => GPI_WIDTH       , --
             GPO_WIDTH       => GPO_WIDTH       , --
             FINISH_ABORT    => FALSE             --
         )                                        -- 
         port map (                               -- 
-            ACLK            => I_CLK           , -- In  :
+            ACLK            => RXD_CLK         , -- In  :
             ARESETn         => ARESETn         , -- In  :
-            TDATA           => I_DATA          , -- Out :
-            TSTRB           => I_STRB          , -- Out :
+            TDATA           => RXD_TDATA       , -- Out :
+            TSTRB           => RXD_TSTRB       , -- Out :
             TKEEP           => open            , -- Out :
             TUSER           => open            , -- Out :
             TDEST           => open            , -- Out :
             TID             => open            , -- Out :
-            TLAST           => I_LAST          , -- Out :
-            TVALID          => I_VALID         , -- Out :
-            TREADY          => I_READY         , -- In  :
+            TLAST           => RXD_TLAST       , -- Out :
+            TVALID          => RXD_TVALID      , -- Out :
+            TREADY          => RXD_TREADY      , -- In  :
             SYNC            => SYNC            , -- I/O :
-            GPI             => I_GPI           , -- In  :
-            GPO             => I_GPO           , -- Out :
-            REPORT_STATUS   => I_REPORT        , -- Out :
-            FINISH          => I_FINISH          -- Out :
+            GPI             => RXD_GPI         , -- In  :
+            GPO             => RXD_GPO         , -- Out :
+            REPORT_STATUS   => RXD_REPORT      , -- Out :
+            FINISH          => RXD_FINISH        -- Out :
         );                                       -- 
     -------------------------------------------------------------------------------
     --
     -------------------------------------------------------------------------------
-    O: AXI4_STREAM_SLAVE_PLAYER                  -- 
+    TXD: AXI4_STREAM_SLAVE_PLAYER                -- 
         generic map (                            -- 
             SCENARIO_FILE   => SCENARIO_FILE   , --
-            NAME            => "O"             , --
+            NAME            => "TXD"           , --
             OUTPUT_DELAY    => DELAY           , --
             SYNC_PLUG_NUM   => 5               , --
-            WIDTH           => O_WIDTH         , --
+            WIDTH           => TXD_WIDTH       , --
             SYNC_WIDTH      => SYNC_WIDTH      , --
             GPI_WIDTH       => GPI_WIDTH       , --
             GPO_WIDTH       => GPO_WIDTH       , --
             FINISH_ABORT    => FALSE             --
         )                                        -- 
         port map(                                -- 
-            ACLK            => O_CLK           , -- In  :
+            ACLK            => TXD_CLK         , -- In  :
             ARESETn         => ARESETn         , -- In  :
-            TDATA           => O_DATA          , -- In  :
-            TSTRB           => O_STRB          , -- In  :
-            TKEEP           => O_KEEP          , -- In  :
-            TUSER           => O_USER          , -- In  :
-            TDEST           => O_DEST          , -- In  :
-            TID             => O_ID            , -- In  :
-            TLAST           => O_LAST          , -- In  :
-            TVALID          => O_VALID         , -- In  :
-            TREADY          => O_READY         , -- Out :
+            TDATA           => TXD_TDATA       , -- In  :
+            TSTRB           => TXD_TSTRB       , -- In  :
+            TKEEP           => TXD_TKEEP       , -- In  :
+            TUSER           => TXD_TUSER       , -- In  :
+            TDEST           => TXD_TDEST       , -- In  :
+            TID             => TXD_TID         , -- In  :
+            TLAST           => TXD_TLAST       , -- In  :
+            TVALID          => TXD_TVALID      , -- In  :
+            TREADY          => TXD_TREADY      , -- Out :
             SYNC            => SYNC            , -- Inou:
-            GPI             => O_GPI           , -- In  :
-            GPO             => O_GPO           , -- Out :
-            REPORT_STATUS   => O_REPORT        , -- Out :
-            FINISH          => O_FINISH          -- Out :
+            GPI             => TXD_GPI         , -- In  :
+            GPO             => TXD_GPO         , -- Out :
+            REPORT_STATUS   => TXD_REPORT      , -- Out :
+            FINISH          => TXD_FINISH        -- Out :
         );                                       -- 
     -------------------------------------------------------------------------------
     -- 
     -------------------------------------------------------------------------------
     DUT: PTTY_AXI4                               -- 
         generic map (                            -- 
-            SBUF_DEPTH      => SBUF_DEPTH      , --
-            RBUF_DEPTH      => RBUF_DEPTH      , --
-            C_ADDR_WIDTH    => AXI4_ADDR_WIDTH , --
-            C_DATA_WIDTH    => AXI4_DATA_WIDTH , --
-            C_ID_WIDTH      => C_WIDTH.ID      , --
-            I_BYTES         => I_BYTES         , --
-            O_BYTES         => O_BYTES           --
+            TXD_BUF_DEPTH   => TXD_BUF_DEPTH   , --
+            RXD_BUF_DEPTH   => RXD_BUF_DEPTH   , --
+            CSR_ADDR_WIDTH  => AXI4_ADDR_WIDTH , --
+            CSR_DATA_WIDTH  => AXI4_DATA_WIDTH , --
+            CSR_ID_WIDTH    => CSR_WIDTH.ID    , --
+            RXD_BYTES       => RXD_BYTES       , --
+            TXD_BYTES       => TXD_BYTES         --
         )                                        -- 
         port map (                               -- 
             ARESETn         => ARESETn         , -- In  :
-            C_CLK           => C_CLK           , -- In  :
-            C_ARID          => C_ARID          , -- In  :
-            C_ARADDR        => C_ARADDR        , -- In  :
-            C_ARLEN         => C_ARLEN         , -- In  :
-            C_ARSIZE        => C_ARSIZE        , -- In  :
-            C_ARBURST       => C_ARBURST       , -- In  :
-            C_ARVALID       => C_ARVALID       , -- In  :
-            C_ARREADY       => C_ARREADY       , -- Out :
-            C_RID           => C_RID           , -- Out :
-            C_RDATA         => C_RDATA         , -- Out :
-            C_RRESP         => C_RRESP         , -- Out :
-            C_RLAST         => C_RLAST         , -- Out :
-            C_RVALID        => C_RVALID        , -- Out :
-            C_RREADY        => C_RREADY        , -- In  :
-            C_AWID          => C_AWID          , -- In  :
-            C_AWADDR        => C_AWADDR        , -- In  :
-            C_AWLEN         => C_AWLEN         , -- In  :
-            C_AWSIZE        => C_AWSIZE        , -- In  :
-            C_AWBURST       => C_AWBURST       , -- In  :
-            C_AWVALID       => C_AWVALID       , -- In  :
-            C_AWREADY       => C_AWREADY       , -- Out :
-            C_WDATA         => C_WDATA         , -- In  :
-            C_WSTRB         => C_WSTRB         , -- In  :
-            C_WLAST         => C_WLAST         , -- In  :
-            C_WVALID        => C_WVALID        , -- In  :
-            C_WREADY        => C_WREADY        , -- Out :
-            C_BID           => C_BID           , -- Out :
-            C_BRESP         => C_BRESP         , -- Out :
-            C_BVALID        => C_BVALID        , -- Out :
-            C_BREADY        => C_BREADY        , -- In  :
-            C_IRQ           => C_IRQ           , -- Out :
-            I_CLK           => I_CLK           , -- In  :
-            I_DATA          => I_DATA          , -- In  :
-            I_STRB          => I_STRB          , -- In  :
-            I_LAST          => I_LAST          , -- In  :
-            I_VALID         => I_VALID         , -- In  :
-            I_READY         => I_READY         , -- Out :
-            O_CLK           => O_CLK           , -- In  :
-            O_DATA          => O_DATA          , -- Out :
-            O_STRB          => O_STRB          , -- Out :
-            O_LAST          => O_LAST          , -- Out :
-            O_VALID         => O_VALID         , -- Out :
-            O_READY         => O_READY           -- In  :
+            CSR_CLK         => CSR_CLK         , -- In  :
+            CSR_ARID        => CSR_ARID        , -- In  :
+            CSR_ARADDR      => CSR_ARADDR      , -- In  :
+            CSR_ARLEN       => CSR_ARLEN       , -- In  :
+            CSR_ARSIZE      => CSR_ARSIZE      , -- In  :
+            CSR_ARBURST     => CSR_ARBURST     , -- In  :
+            CSR_ARVALID     => CSR_ARVALID     , -- In  :
+            CSR_ARREADY     => CSR_ARREADY     , -- Out :
+            CSR_RID         => CSR_RID         , -- Out :
+            CSR_RDATA       => CSR_RDATA       , -- Out :
+            CSR_RRESP       => CSR_RRESP       , -- Out :
+            CSR_RLAST       => CSR_RLAST       , -- Out :
+            CSR_RVALID      => CSR_RVALID      , -- Out :
+            CSR_RREADY      => CSR_RREADY      , -- In  :
+            CSR_AWID        => CSR_AWID        , -- In  :
+            CSR_AWADDR      => CSR_AWADDR      , -- In  :
+            CSR_AWLEN       => CSR_AWLEN       , -- In  :
+            CSR_AWSIZE      => CSR_AWSIZE      , -- In  :
+            CSR_AWBURST     => CSR_AWBURST     , -- In  :
+            CSR_AWVALID     => CSR_AWVALID     , -- In  :
+            CSR_AWREADY     => CSR_AWREADY     , -- Out :
+            CSR_WDATA       => CSR_WDATA       , -- In  :
+            CSR_WSTRB       => CSR_WSTRB       , -- In  :
+            CSR_WLAST       => CSR_WLAST       , -- In  :
+            CSR_WVALID      => CSR_WVALID      , -- In  :
+            CSR_WREADY      => CSR_WREADY      , -- Out :
+            CSR_BID         => CSR_BID         , -- Out :
+            CSR_BRESP       => CSR_BRESP       , -- Out :
+            CSR_BVALID      => CSR_BVALID      , -- Out :
+            CSR_BREADY      => CSR_BREADY      , -- In  :
+            CSR_IRQ         => CSR_IRQ         , -- Out :
+            RXD_CLK         => RXD_CLK         , -- In  :
+            RXD_TDATA       => RXD_TDATA       , -- In  :
+            RXD_TSTRB       => RXD_TSTRB       , -- In  :
+            RXD_TLAST       => RXD_TLAST       , -- In  :
+            RXD_TVALID      => RXD_TVALID      , -- In  :
+            RXD_TREADY      => RXD_TREADY      , -- Out :
+            TXD_CLK         => TXD_CLK         , -- In  :
+            TXD_TDATA       => TXD_TDATA       , -- Out :
+            TXD_TSTRB       => TXD_TSTRB       , -- Out :
+            TXD_TLAST       => TXD_TLAST       , -- Out :
+            TXD_TVALID      => TXD_TVALID      , -- Out :
+            TXD_TREADY      => TXD_TREADY        -- In  :
         );
     -------------------------------------------------------------------------------
     -- 
     -------------------------------------------------------------------------------
     process begin
-        C_CLK <= '0';
-        wait for C_CLK_PERIOD / 2;
-        C_CLK <= '1';
-        wait for C_CLK_PERIOD / 2;
+        CSR_CLK <= '0';
+        wait for CSR_CLK_PERIOD / 2;
+        CSR_CLK <= '1';
+        wait for CSR_CLK_PERIOD / 2;
     end process;
     process begin
-        I_CLK <= '0';
-        wait for I_CLK_PERIOD / 2;
-        I_CLK <= '1';
-        wait for I_CLK_PERIOD / 2;
+        RXD_CLK <= '0';
+        wait for RXD_CLK_PERIOD / 2;
+        RXD_CLK <= '1';
+        wait for RXD_CLK_PERIOD / 2;
     end process;
     process begin
-        O_CLK <= '0';
-        wait for O_CLK_PERIOD / 2;
-        O_CLK <= '1';
-        wait for O_CLK_PERIOD / 2;
+        TXD_CLK <= '0';
+        wait for TXD_CLK_PERIOD / 2;
+        TXD_CLK <= '1';
+        wait for TXD_CLK_PERIOD / 2;
     end process;
 
     ARESETn <= '1' when (RESET = '0') else '0';
-    C_GPI(0)<= C_IRQ;
-    C_GPI(C_GPI'high downto 1) <= C_GPO(C_GPI'high downto 1);
-    I_GPI   <= C_GPO;
-    I_GPI   <= C_GPO;
+    CSR_GPI(0)<= CSR_IRQ;
+    CSR_GPI(CSR_GPI'high downto 1) <= CSR_GPO(CSR_GPI'high downto 1);
+    RXD_GPI   <= CSR_GPO;
+    RXD_GPI   <= CSR_GPO;
     process
         variable L   : LINE;
         constant T   : STRING(1 to 7) := "  ***  ";
     begin
-        wait until (C_FINISH'event and C_FINISH = '1');
+        wait until (CSR_FINISH'event and CSR_FINISH = '1');
         wait for DELAY;
-        WRITE(L,T);                                                   WRITELINE(OUTPUT,L);
-        WRITE(L,T & "ERROR REPORT " & NAME);                          WRITELINE(OUTPUT,L);
-        WRITE(L,T & "[ CSR ]");                                       WRITELINE(OUTPUT,L);
-        WRITE(L,T & "  Error    : ");WRITE(L,C_REPORT.error_count   );WRITELINE(OUTPUT,L);
-        WRITE(L,T & "  Mismatch : ");WRITE(L,C_REPORT.mismatch_count);WRITELINE(OUTPUT,L);
-        WRITE(L,T & "  Warning  : ");WRITE(L,C_REPORT.warning_count );WRITELINE(OUTPUT,L);
-        WRITE(L,T & "[ O ]");                                         WRITELINE(OUTPUT,L);
-        WRITE(L,T & "  Error    : ");WRITE(L,O_REPORT.error_count   );WRITELINE(OUTPUT,L);
-        WRITE(L,T & "  Mismatch : ");WRITE(L,O_REPORT.mismatch_count);WRITELINE(OUTPUT,L);
-        WRITE(L,T & "  Warning  : ");WRITE(L,O_REPORT.warning_count );WRITELINE(OUTPUT,L);
-        WRITE(L,T & "[ I ]");                                         WRITELINE(OUTPUT,L);
-        WRITE(L,T & "  Error    : ");WRITE(L,I_REPORT.error_count   );WRITELINE(OUTPUT,L);
-        WRITE(L,T & "  Mismatch : ");WRITE(L,I_REPORT.mismatch_count);WRITELINE(OUTPUT,L);
-        WRITE(L,T & "  Warning  : ");WRITE(L,I_REPORT.warning_count );WRITELINE(OUTPUT,L);
-        WRITE(L,T);                                                   WRITELINE(OUTPUT,L);
+        WRITE(L,T);                                                     WRITELINE(OUTPUT,L);
+        WRITE(L,T & "ERROR REPORT " & NAME);                            WRITELINE(OUTPUT,L);
+        WRITE(L,T & "[ CSR ]");                                         WRITELINE(OUTPUT,L);
+        WRITE(L,T & "  Error    : ");WRITE(L,CSR_REPORT.error_count   );WRITELINE(OUTPUT,L);
+        WRITE(L,T & "  Mismatch : ");WRITE(L,CSR_REPORT.mismatch_count);WRITELINE(OUTPUT,L);
+        WRITE(L,T & "  Warning  : ");WRITE(L,CSR_REPORT.warning_count );WRITELINE(OUTPUT,L);
+        WRITE(L,T & "[ TXD ]");                                         WRITELINE(OUTPUT,L);
+        WRITE(L,T & "  Error    : ");WRITE(L,TXD_REPORT.error_count   );WRITELINE(OUTPUT,L);
+        WRITE(L,T & "  Mismatch : ");WRITE(L,TXD_REPORT.mismatch_count);WRITELINE(OUTPUT,L);
+        WRITE(L,T & "  Warning  : ");WRITE(L,TXD_REPORT.warning_count );WRITELINE(OUTPUT,L);
+        WRITE(L,T & "[ RXD ]");                                         WRITELINE(OUTPUT,L);
+        WRITE(L,T & "  Error    : ");WRITE(L,RXD_REPORT.error_count   );WRITELINE(OUTPUT,L);
+        WRITE(L,T & "  Mismatch : ");WRITE(L,RXD_REPORT.mismatch_count);WRITELINE(OUTPUT,L);
+        WRITE(L,T & "  Warning  : ");WRITE(L,RXD_REPORT.warning_count );WRITELINE(OUTPUT,L);
+        WRITE(L,T);                                                     WRITELINE(OUTPUT,L);
         assert FALSE report "Simulation complete." severity FAILURE;
         wait;
     end process;

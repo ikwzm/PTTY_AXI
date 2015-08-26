@@ -584,7 +584,7 @@
       RESP: OKAY
       TIMEOUT: 100
   - WAIT : {GPI(0) : 0, TIMEOUT: 100}
-- O :
+- TXD :
   - SAY : PTTY_AXI4_TEST_1 START.
   - READY  : 1
   - WAIT   : {VALID: 1, READY: 1}

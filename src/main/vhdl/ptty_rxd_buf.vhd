@@ -1,8 +1,8 @@
 -----------------------------------------------------------------------------------
---!     @file    recv_buf.vhd
---!     @brief   Receiver Buffer for PTTY_AXI4
+--!     @file    ptty_rxd_buf.vhd
+--!     @brief   Receive Data Buffer for PTTY_AXI4
 --!     @version 0.1.0
---!     @date    2015/8/20
+--!     @date    2015/8/26
 --!     @author  Ichiro Kawazome <ichiro_k@ca2.so-net.ne.jp>
 -----------------------------------------------------------------------------------
 --
@@ -39,7 +39,7 @@ use     ieee.std_logic_1164.all;
 -----------------------------------------------------------------------------------
 --! @brief 受信バッファ
 -----------------------------------------------------------------------------------
-entity  RECV_BUF is
+entity  PTTY_RXD_BUF is
     generic (
         BUF_DEPTH   : --! @brief BUFFER DEPTH :
                       --! バッファの容量(バイト数)を２のべき乗値で指定する.
@@ -133,7 +133,7 @@ entity  RECV_BUF is
                       --! リセットデータロード信号.
                       in  std_logic
     );
-end RECV_BUF;
+end PTTY_RXD_BUF;
 -----------------------------------------------------------------------------------
 -- 
 -----------------------------------------------------------------------------------
@@ -144,7 +144,7 @@ library PIPEWORK;
 use     PIPEWORK.COMPONENTS.SDPRAM;
 use     PIPEWORK.COMPONENTS.SYNCRONIZER;
 use     PIPEWORK.COMPONENTS.SYNCRONIZER_INPUT_PENDING_REGISTER;
-architecture RTL of RECV_BUF is
+architecture RTL of PTTY_RXD_BUF is
     -------------------------------------------------------------------------------
     -- バッファ書き込み制御信号
     -------------------------------------------------------------------------------
@@ -487,7 +487,7 @@ begin
             RWIDTH      => BUF_WIDTH+3         , --
             WWIDTH      => BUF_WIDTH+3         , --
             WEBIT       => BUF_WIDTH           , --
-            ID          => 0                     -- 
+            ID          => 1                     -- 
         )                                        -- 
         port map (                               -- 
             WCLK        => I_CLK               , -- In  :
