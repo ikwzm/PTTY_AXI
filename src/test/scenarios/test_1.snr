@@ -10,12 +10,12 @@
       TIMEOUT: 100
   - READ : 
       ADDR: 0x00000010
-      DATA: [0x00000000,0x00000000,0x00000000,0x00000000]
+      DATA: [0x00000000,0x00000100,0x08000000,0x00000000]
       RESP: OKAY
       TIMEOUT: 100
   - READ : 
       ADDR: 0x00000020
-      DATA: [0x00000000,0x00000000,0x00000000,0x00000000]
+      DATA: [0x00000000,0x00000100,0x0C000000,0x00000000]
       RESP: OKAY
       TIMEOUT: 100
   - READ : 
@@ -25,12 +25,12 @@
       TIMEOUT: 100
   # SAY  : SEND Reset
   - WRITE:
-      ADDR: 0x0000014
+      ADDR: 0x000001C
       DATA: 0x8000000
       RESP: OKAY
       TIMEOUT: 100
   - WRITE:
-      ADDR: 0x0000014
+      ADDR: 0x000001C
       DATA: 0x0000000
       RESP: OKAY
       TIMEOUT: 100
@@ -43,24 +43,24 @@
       RESP: OKAY
       TIMEOUT: 100
   - WRITE:
-      ADDR: 0x00000014
+      ADDR: 0x0000001C
       DATA: 0x14000008
       RESP: OKAY
       TIMEOUT: 100
   - SAY  : WAIT BUFFER EMPTY
   - WAIT : {GPI(0) : 1, TIMEOUT: 100}
   - READ : 
-      ADDR: 0x00000010
-      DATA: 0x00080000
+      ADDR: 0x00000018
+      DATA: 0x08080000
       RESP: OKAY
       TIMEOUT: 100
   - READ : 
-      ADDR: 0x00000014
+      ADDR: 0x0000001C
       DATA: 0x00010008
       RESP: OKAY
       TIMEOUT: 100
   - WRITE:
-      ADDR: 0x00000014
+      ADDR: 0x0000001C
       DATA: 0x00000000
       RESP: OKAY
       TIMEOUT: 100
@@ -74,23 +74,23 @@
       RESP: OKAY
       TIMEOUT: 100
   - WRITE:
-      ADDR: 0x00000014
+      ADDR: 0x0000001C
       DATA: 0x14000001
       RESP: OKAY
       TIMEOUT: 100
   - WAIT : {GPI(0) : 1, TIMEOUT: 100}
   - READ : 
-      ADDR: 0x00000010
-      DATA: 0x00090000
+      ADDR: 0x00000018
+      DATA: 0x08090000
       RESP: OKAY
       TIMEOUT: 100
   - READ : 
-      ADDR: 0x00000014
+      ADDR: 0x0000001C
       DATA: 0x00010001
       RESP: OKAY
       TIMEOUT: 100
   - WRITE:
-      ADDR: 0x00000014
+      ADDR: 0x0000001C
       DATA: 0x00000000
       RESP: OKAY
       TIMEOUT: 100
@@ -104,23 +104,23 @@
       RESP: OKAY
       TIMEOUT: 100
   - WRITE:
-      ADDR: 0x00000014
+      ADDR: 0x0000001C
       DATA: 0x14000001
       RESP: OKAY
       TIMEOUT: 100
   - WAIT : {GPI(0) : 1, TIMEOUT: 100}
   - READ : 
-      ADDR: 0x00000010
-      DATA: 0x000A0000
+      ADDR: 0x00000018
+      DATA: 0x080A0000
       RESP: OKAY
       TIMEOUT: 100
   - READ : 
-      ADDR: 0x00000014
+      ADDR: 0x0000001C
       DATA: 0x00010001
       RESP: OKAY
       TIMEOUT: 100
   - WRITE:
-      ADDR: 0x00000014
+      ADDR: 0x0000001C
       DATA: 0x00000000
       RESP: OKAY
       TIMEOUT: 100
@@ -134,23 +134,23 @@
       RESP: OKAY
       TIMEOUT: 100
   - WRITE:
-      ADDR: 0x00000014
+      ADDR: 0x0000001C
       DATA: 0x14000001
       RESP: OKAY
       TIMEOUT: 100
   - WAIT : {GPI(0) : 1, TIMEOUT: 100}
   - READ : 
-      ADDR: 0x00000010
-      DATA: 0x000B0000
+      ADDR: 0x00000018
+      DATA: 0x080B0000
       RESP: OKAY
       TIMEOUT: 100
   - READ : 
-      ADDR: 0x00000014
+      ADDR: 0x0000001C
       DATA: 0x00010001
       RESP: OKAY
       TIMEOUT: 100
   - WRITE:
-      ADDR: 0x00000014
+      ADDR: 0x0000001C
       DATA: 0x00000000
       RESP: OKAY
       TIMEOUT: 100
@@ -164,23 +164,23 @@
       RESP: OKAY
       TIMEOUT: 100
   - WRITE:
-      ADDR: 0x00000014
+      ADDR: 0x0000001C
       DATA: 0x15000001
       RESP: OKAY
       TIMEOUT: 100
   - WAIT : {GPI(0) : 1, TIMEOUT: 100}
   - READ : 
-      ADDR: 0x00000010
-      DATA: 0x000C0000
+      ADDR: 0x00000018
+      DATA: 0x080C0000
       RESP: OKAY
       TIMEOUT: 100
   - READ : 
-      ADDR: 0x00000014
+      ADDR: 0x0000001C
       DATA: 0x01010001
       RESP: OKAY
       TIMEOUT: 100
   - WRITE:
-      ADDR: 0x00000014
+      ADDR: 0x0000001C
       DATA: 0x00000000
       RESP: OKAY
       TIMEOUT: 100
@@ -194,23 +194,23 @@
       RESP: OKAY
       TIMEOUT: 100
   - WRITE:
-      ADDR: 0x00000014
+      ADDR: 0x0000001C
       DATA: 0x14000002
       RESP: OKAY
       TIMEOUT: 100
   - WAIT : {GPI(0) : 1, TIMEOUT: 100}
   - READ : 
-      ADDR: 0x00000010
-      DATA: 0x000E0000
+      ADDR: 0x00000018
+      DATA: 0x080E0000
       RESP: OKAY
       TIMEOUT: 100
   - READ : 
-      ADDR: 0x00000014
+      ADDR: 0x0000001C
       DATA: 0x00010002
       RESP: OKAY
       TIMEOUT: 100
   - WRITE:
-      ADDR: 0x00000014
+      ADDR: 0x0000001C
       DATA: 0x00000000
       RESP: OKAY
       TIMEOUT: 100
@@ -224,23 +224,23 @@
       RESP: OKAY
       TIMEOUT: 100
   - WRITE:
-      ADDR: 0x00000014
+      ADDR: 0x0000001C
       DATA: 0x14000002
       RESP: OKAY
       TIMEOUT: 100
   - WAIT : {GPI(0) : 1, TIMEOUT: 100}
   - READ : 
-      ADDR: 0x00000010
-      DATA: 0x00100000
+      ADDR: 0x00000018
+      DATA: 0x08100000
       RESP: OKAY
       TIMEOUT: 100
   - READ : 
-      ADDR: 0x00000014
+      ADDR: 0x0000001C
       DATA: 0x00010002
       RESP: OKAY
       TIMEOUT: 100
   - WRITE:
-      ADDR: 0x00000014
+      ADDR: 0x0000001C
       DATA: 0x00000000
       RESP: OKAY
       TIMEOUT: 100
@@ -254,23 +254,23 @@
       RESP: OKAY
       TIMEOUT: 100
   - WRITE:
-      ADDR: 0x00000014
+      ADDR: 0x0000001C
       DATA: 0x14000002
       RESP: OKAY
       TIMEOUT: 100
   - WAIT : {GPI(0) : 1, TIMEOUT: 100}
   - READ : 
-      ADDR: 0x00000010
-      DATA: 0x00120000
+      ADDR: 0x00000018
+      DATA: 0x08120000
       RESP: OKAY
       TIMEOUT: 100
   - READ : 
-      ADDR: 0x00000014
+      ADDR: 0x0000001C
       DATA: 0x00010002
       RESP: OKAY
       TIMEOUT: 100
   - WRITE:
-      ADDR: 0x00000014
+      ADDR: 0x0000001C
       DATA: 0x00000000
       RESP: OKAY
       TIMEOUT: 100
@@ -289,23 +289,23 @@
       RESP: OKAY
       TIMEOUT: 100
   - WRITE:
-      ADDR: 0x00000014
+      ADDR: 0x0000001C
       DATA: 0x14000003
       RESP: OKAY
       TIMEOUT: 100
   - WAIT : {GPI(0) : 1, TIMEOUT: 100}
   - READ : 
-      ADDR: 0x00000010
-      DATA: 0x00150000
+      ADDR: 0x00000018
+      DATA: 0x08150000
       RESP: OKAY
       TIMEOUT: 100
   - READ : 
-      ADDR: 0x00000014
+      ADDR: 0x0000001C
       DATA: 0x00010003
       RESP: OKAY
       TIMEOUT: 100
   - WRITE:
-      ADDR: 0x00000014
+      ADDR: 0x0000001C
       DATA: 0x00000000
       RESP: OKAY
       TIMEOUT: 100
@@ -324,23 +324,23 @@
       RESP: OKAY
       TIMEOUT: 100
   - WRITE:
-      ADDR: 0x00000014
+      ADDR: 0x0000001C
       DATA: 0x14000003
       RESP: OKAY
       TIMEOUT: 100
   - WAIT : {GPI(0) : 1, TIMEOUT: 100}
   - READ : 
-      ADDR: 0x00000010
-      DATA: 0x00180000
+      ADDR: 0x00000018
+      DATA: 0x08180000
       RESP: OKAY
       TIMEOUT: 100
   - READ : 
-      ADDR: 0x00000014
+      ADDR: 0x0000001C
       DATA: 0x00010003
       RESP: OKAY
       TIMEOUT: 100
   - WRITE:
-      ADDR: 0x00000014
+      ADDR: 0x0000001C
       DATA: 0x00000000
       RESP: OKAY
       TIMEOUT: 100
@@ -354,23 +354,23 @@
       RESP: OKAY
       TIMEOUT: 100
   - WRITE:
-      ADDR: 0x00000014
+      ADDR: 0x0000001C
       DATA: 0x15000003
       RESP: OKAY
       TIMEOUT: 100
   - WAIT : {GPI(0) : 1, TIMEOUT: 100}
   - READ : 
-      ADDR: 0x00000010
-      DATA: 0x001B0000
+      ADDR: 0x00000018
+      DATA: 0x081B0000
       RESP: OKAY
       TIMEOUT: 100
   - READ : 
-      ADDR: 0x00000014
+      ADDR: 0x0000001C
       DATA: 0x01010003
       RESP: OKAY
       TIMEOUT: 100
   - WRITE:
-      ADDR: 0x00000014
+      ADDR: 0x0000001C
       DATA: 0x00000000
       RESP: OKAY
       TIMEOUT: 100
@@ -389,23 +389,23 @@
       RESP: OKAY
       TIMEOUT: 100
   - WRITE:
-      ADDR: 0x00000014
+      ADDR: 0x0000001C
       DATA: 0x15000005
       RESP: OKAY
       TIMEOUT: 100
   - WAIT : {GPI(0) : 1, TIMEOUT: 100}
   - READ : 
-      ADDR: 0x00000010
-      DATA: 0x00200000
+      ADDR: 0x00000018
+      DATA: 0x08200000
       RESP: OKAY
       TIMEOUT: 100
   - READ : 
-      ADDR: 0x00000014
+      ADDR: 0x0000001C
       DATA: 0x01010005
       RESP: OKAY
       TIMEOUT: 100
   - WRITE:
-      ADDR: 0x00000014
+      ADDR: 0x0000001C
       DATA: 0x00000000
       RESP: OKAY
       TIMEOUT: 100
@@ -494,23 +494,23 @@
       RESP: OKAY
       TIMEOUT: 100
   - WRITE:
-      ADDR: 0x00000014
+      ADDR: 0x0000001C
       DATA: 0x15000100
       RESP: OKAY
       TIMEOUT: 100
   - WAIT : {GPI(0) : 1, TIMEOUT: 1000}
   - READ : 
-      ADDR: 0x00000010
-      DATA: 0x00200000
+      ADDR: 0x00000018
+      DATA: 0x08200000
       RESP: OKAY
       TIMEOUT: 100
   - READ : 
-      ADDR: 0x00000014
+      ADDR: 0x0000001C
       DATA: 0x01010100
       RESP: OKAY
       TIMEOUT: 100
   - WRITE:
-      ADDR: 0x00000014
+      ADDR: 0x0000001C
       DATA: 0x00000000
       RESP: OKAY
       TIMEOUT: 100
@@ -519,67 +519,67 @@
   # SAY  : Write Send Buffer 256Byte (2)
   #-----------------------------------------------------------
   - WRITE:
-      ADDR: 0x00000014
+      ADDR: 0x0000001C
       DATA: 0x10000022
       RESP: OKAY
       TIMEOUT: 100
   - WAIT : 10
   - WRITE:
-      ADDR: 0x00000014
+      ADDR: 0x0000001C
       DATA: 0x10000031
       RESP: OKAY
       TIMEOUT: 100
   - WAIT : 10
   - WRITE:
-      ADDR: 0x00000014
+      ADDR: 0x0000001C
       DATA: 0x10000040
       RESP: OKAY
       TIMEOUT: 100
   - WAIT : 10
   - WRITE:
-      ADDR: 0x00000014
+      ADDR: 0x0000001C
       DATA: 0x10000001
       RESP: OKAY
       TIMEOUT: 100
   - WRITE:
-      ADDR: 0x00000014
+      ADDR: 0x0000001C
       DATA: 0x10000001
       RESP: OKAY
       TIMEOUT: 100
   - WRITE:
-      ADDR: 0x00000014
+      ADDR: 0x0000001C
       DATA: 0x10000005
       RESP: OKAY
       TIMEOUT: 100
   - WAIT : 100
   - WRITE:
-      ADDR: 0x00000014
+      ADDR: 0x0000001C
       DATA: 0x10000018
       RESP: OKAY
       TIMEOUT: 100
   - WRITE:
-      ADDR: 0x00000014
+      ADDR: 0x0000001C
       DATA: 0x1000004D
       RESP: OKAY
       TIMEOUT: 100
   - WRITE:
-      ADDR: 0x00000014
+      ADDR: 0x0000001C
       DATA: 0x15000001
       RESP: OKAY
       TIMEOUT: 100
   - WAIT : {GPI(0) : 1, TIMEOUT: 1000}
   - READ : 
-      ADDR: 0x00000010
-      DATA: 0x00200000
+      ADDR: 0x00000018
+      DATA: 0x08200000
       RESP: OKAY
       TIMEOUT: 100
   - READ : 
-      ADDR: 0x00000014
+      ADDR: 0x0000001C
       DATA: 0x01010001
       RESP: OKAY
       TIMEOUT: 100
   - WRITE:
-      ADDR: 0x00000014
+      ADDR: 0x0000001C
       DATA: 0x00000000
       RESP: OKAY
       TIMEOUT: 100

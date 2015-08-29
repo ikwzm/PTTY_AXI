@@ -10,6 +10,8 @@ TEST_BENCH    = test_1 \
 
 all: $(TEST_BENCH)
 
+.PHONY : clean $(TEST_BENCH)
+
 clean:
 	rm -f *.o *.cf $(TEST_BENCH)
 

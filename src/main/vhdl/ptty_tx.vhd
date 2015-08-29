@@ -43,7 +43,10 @@ entity  PTTY_TX is
     generic (
         TXD_BUF_DEPTH   : --! @brief TRANSMIT DATA BUFFER DEPTH :
                           --! バッファの容量(バイト数)を２のべき乗値で指定する.
-                          integer range 4 to    9 :=  7;
+                          integer range 4 to   15 :=  7;
+        TXD_BUF_BASE    : --! @brief TRANSMIT DATA BUFFER BASE ADDRESS :
+                          --! バッファのベースアドレスを指定する.
+                          integer := 16#0000#;
         CSR_ADDR_WIDTH  : --! @brief REGISTER INTERFACE ADDRESS WIDTH :
                           --! レジスタアクセスのアドレスのビット幅を指定する.
                           integer range 1 to   64 := 32;
@@ -146,7 +149,7 @@ architecture RTL of PTTY_TX is
     -------------------------------------------------------------------------------
     -- レジスタアクセスインターフェースのアドレスのビット数.
     -------------------------------------------------------------------------------
-    constant   REGS_ADDR_WIDTH    :  integer := 3;
+    constant   REGS_ADDR_WIDTH    :  integer := 4;
     -------------------------------------------------------------------------------
     -- 全レジスタのビット数.
     -------------------------------------------------------------------------------
@@ -174,43 +177,72 @@ architecture RTL of PTTY_TX is
     -------------------------------------------------------------------------------
     --           31            24              16               8               0
     --           +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    -- Addr=0x00 |          BufPtr[15:0]         |       BufCount[15:00]         |
+    -- Addr=0x00 |                      Header[31:00]                            |
     --           +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    -- Addr=0x04 | Control[7:0]  |  Status[7:0]  |       PushSize[15:00]         |
+    -- Addr=0x04 |                   Configuration[31:00]                        |
+    --           +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    -- Addr=0x08 |          BufPtr[15:0]         |       BufCount[15:00]         |
+    --           +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    -- Addr=0x0C | Control[7:0]  |  Status[7:0]  |       PushSize[15:00]         |
     --           +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     -------------------------------------------------------------------------------
     constant   REGS_BASE_ADDR     :  integer := 16#00#;
     -------------------------------------------------------------------------------
+    -- Header[31:0]
+    -------------------------------------------------------------------------------
+    constant   REGS_HEADER_ADDR   :  integer := REGS_BASE_ADDR        + 16#00#;
+    constant   REGS_HEADER_BITS   :  integer := 32;
+    constant   REGS_HEADER_LO     :  integer := 8*REGS_HEADER_ADDR    + 0;
+    constant   REGS_HEADER_HI     :  integer := REGS_HEADER_LO        + REGS_HEADER_BITS-1;
+    constant   REGS_HEADER_VALUE  :  std_logic_vector(REGS_HEADER_BITS-1 downto 0) := (others => '0');
+    -------------------------------------------------------------------------------
+    -- Configuration[31:0]
+    -------------------------------------------------------------------------------
+    -- Configuration[15:00] = バッファの容量
+    -- Configuration[31:16] = 予約
+    -------------------------------------------------------------------------------
+    constant   REGS_CONFIG_ADDR   :  integer := REGS_BASE_ADDR        + 16#04#;
+    constant   REGS_BUF_SIZE_BITS :  integer := 16;
+    constant   REGS_BUF_SIZE_LO   :  integer := 8*REGS_CONFIG_ADDR    +  0;
+    constant   REGS_BUF_SIZE_HI   :  integer := REGS_BUF_SIZE_LO      + REGS_BUF_SIZE_BITS - 1;
+    constant   REGS_CONFIG_RSV_LO :  integer := 8*REGS_CONFIG_ADDR    + 16;
+    constant   REGS_CONFIG_RSV_HI :  integer := REGS_CONFIG_RSV_LO    + 15;
+    constant   REGS_BUF_SIZE      :  std_logic_vector(REGS_BUF_SIZE_BITS-1 downto 0)
+                                  := std_logic_vector(to_unsigned(2**TXD_BUF_DEPTH, REGS_BUF_SIZE_BITS));
+    constant   REGS_CONFIG_RSV    :  std_logic_vector(REGS_CONFIG_RSV_HI downto REGS_CONFIG_RSV_LO)
+                                  := (others => '0');
+    -------------------------------------------------------------------------------
     -- BufCount[15:0]
     -------------------------------------------------------------------------------
-    constant   REGS_BUF_COUNT_ADDR:  integer := REGS_BASE_ADDR        + 16#00#;
+    constant   REGS_BUF_COUNT_ADDR:  integer := REGS_BASE_ADDR        + 16#08#;
     constant   REGS_BUF_COUNT_BITS:  integer := 16;
     constant   REGS_BUF_COUNT_LO  :  integer := 8*REGS_BUF_COUNT_ADDR + 0;
-    constant   REGS_BUF_COUNT_HI  :  integer := 8*REGS_BUF_COUNT_ADDR + REGS_BUF_COUNT_BITS-1;
-    signal     sbuf_count         :  std_logic_vector(TXD_BUF_DEPTH   downto 0);
+    constant   REGS_BUF_COUNT_HI  :  integer := REGS_BUF_COUNT_LO     + REGS_BUF_COUNT_BITS-1;
+    signal     sbuf_count         :  std_logic_vector(TXD_BUF_DEPTH downto 0);
     -------------------------------------------------------------------------------
     -- BufPtr[15:0]
     -------------------------------------------------------------------------------
-    constant   REGS_BUF_PTR_ADDR  :  integer := REGS_BASE_ADDR        + 16#02#;
+    constant   REGS_BUF_PTR_ADDR  :  integer := REGS_BASE_ADDR        + 16#0A#;
     constant   REGS_BUF_PTR_BITS  :  integer := 16;
     constant   REGS_BUF_PTR_LO    :  integer := 8*REGS_BUF_PTR_ADDR   + 0;
-    constant   REGS_BUF_PTR_HI    :  integer := 8*REGS_BUF_PTR_ADDR   + REGS_BUF_PTR_BITS-1;
-    signal     sbuf_ptr           :  std_logic_vector(TXD_BUF_DEPTH-1 downto 0);
+    constant   REGS_BUF_PTR_HI    :  integer := REGS_BUF_PTR_LO       + REGS_BUF_PTR_BITS-1;
+    signal     sbuf_offset        :  std_logic_vector(TXD_BUF_DEPTH  -1 downto 0);
+    signal     sbuf_ptr           :  std_logic_vector(REGS_BUF_PTR_BITS downto 0);
     -------------------------------------------------------------------------------
     -- PushSize[15:0]
     -------------------------------------------------------------------------------
-    constant   REGS_PUSH_SIZE_ADDR:  integer := REGS_BASE_ADDR        + 16#04#;
+    constant   REGS_PUSH_SIZE_ADDR:  integer := REGS_BASE_ADDR        + 16#0C#;
     constant   REGS_PUSH_SIZE_BITS:  integer := 16;
     constant   REGS_PUSH_SIZE_LO  :  integer := 8*REGS_PUSH_SIZE_ADDR + 0;
-    constant   REGS_PUSH_SIZE_HI  :  integer := 8*REGS_PUSH_SIZE_ADDR + REGS_PUSH_SIZE_BITS-1;
-    signal     sbuf_push_size     :  std_logic_vector(TXD_BUF_DEPTH   downto 0);
+    constant   REGS_PUSH_SIZE_HI  :  integer := REGS_PUSH_SIZE_LO     + REGS_PUSH_SIZE_BITS-1;
+    signal     sbuf_push_size     :  std_logic_vector(TXD_BUF_DEPTH downto 0);
     -------------------------------------------------------------------------------
     -- Status[7:0]
     -------------------------------------------------------------------------------
     -- Status[7:1] = 予約
     -- Status[0]   = バッファが空 かつ Control[2]=1 の時このフラグがセットされる
     -------------------------------------------------------------------------------
-    constant   REGS_STAT_ADDR     :  integer := REGS_BASE_ADDR        + 16#06#;
+    constant   REGS_STAT_ADDR     :  integer := REGS_BASE_ADDR        + 16#0E#;
     constant   REGS_STAT_RESV_HI  :  integer := 8*REGS_STAT_ADDR      +  7;
     constant   REGS_STAT_RESV_LO  :  integer := 8*REGS_STAT_ADDR      +  1;
     constant   REGS_STAT_DONE_POS :  integer := 8*REGS_STAT_ADDR      +  0;
@@ -227,7 +259,7 @@ architecture RTL of PTTY_TX is
     -- Control[1]  = 予約.
     -- Control[0]  = 1:最後の送信であることを指定する.
     -------------------------------------------------------------------------------
-    constant   REGS_CTRL_ADDR     :  integer := REGS_BASE_ADDR        + 16#07#;
+    constant   REGS_CTRL_ADDR     :  integer := REGS_BASE_ADDR        + 16#0F#;
     constant   REGS_CTRL_RESET_POS:  integer := 8*REGS_CTRL_ADDR      +  7;
     constant   REGS_CTRL_PAUSE_POS:  integer := 8*REGS_CTRL_ADDR      +  6;
     constant   REGS_CTRL_ABORT_POS:  integer := 8*REGS_CTRL_ADDR      +  5;
@@ -349,6 +381,15 @@ begin
             O_RDATA         => regs_rbit                       -- In  :
         );                                                     -- 
     -------------------------------------------------------------------------------
+    -- Header[31:0]
+    -------------------------------------------------------------------------------
+    regs_rbit(REGS_HEADER_HI     downto REGS_HEADER_LO    ) <= REGS_HEADER_VALUE;
+    -------------------------------------------------------------------------------
+    -- Configuration[31:0]
+    -------------------------------------------------------------------------------
+    regs_rbit(REGS_BUF_SIZE_HI   downto REGS_BUF_SIZE_LO  ) <= REGS_BUF_SIZE;
+    regs_rbit(REGS_CONFIG_RSV_HI downto REGS_CONFIG_RSV_LO) <= REGS_CONFIG_RSV;
+    -------------------------------------------------------------------------------
     -- BufCount[15:0]
     -------------------------------------------------------------------------------
     regs_rbit(REGS_BUF_COUNT_HI downto REGS_BUF_COUNT_LO) <= resize(sbuf_count, REGS_BUF_COUNT_BITS);
@@ -356,6 +397,7 @@ begin
     -- BufPtr[15:0]
     -------------------------------------------------------------------------------
     regs_rbit(REGS_BUF_PTR_HI   downto REGS_BUF_PTR_LO  ) <= resize(sbuf_ptr  , REGS_BUF_PTR_BITS  );
+    sbuf_ptr <= std_logic_vector(to_unsigned(TXD_BUF_BASE, sbuf_ptr'length) + to_01(unsigned(sbuf_offset)));
     -------------------------------------------------------------------------------
     -- PushSize[15:0]
     -------------------------------------------------------------------------------
@@ -537,7 +579,7 @@ begin
             BUF_WE          => sbuf_we                       , -- In  :
             BUF_WADDR       => sbuf_addr                     , -- In  :
             BUF_COUNT       => sbuf_count                    , -- Out :
-            BUF_CADDR       => sbuf_ptr                      , -- Out :
+            BUF_CADDR       => sbuf_offset                   , -- Out :
             BUF_LAST        => open                          , -- Out :
             PUSH_SIZE       => sbuf_push_size                , -- In  :
             PUSH_LAST       => ctrl_last_bit                 , -- In  :

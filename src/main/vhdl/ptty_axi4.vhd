@@ -181,38 +181,39 @@ architecture RTL of PTTY_AXI4 is
     -------------------------------------------------------------------------------
     -- PTTY_SEND アクセス用信号群.
     -------------------------------------------------------------------------------
-    signal   send_reg_req       :  std_logic;
-    signal   send_buf_req       :  std_logic;
-    signal   send_ack           :  std_logic;
-    signal   send_err           :  std_logic;
-    signal   send_rdata         :  std_logic_vector(CSR_DATA_WIDTH  -1 downto 0);
-    signal   send_irq           :  std_logic;
+    signal   tx_regs_req        :  std_logic;
+    signal   txd_buf_req        :  std_logic;
+    signal   tx_ack             :  std_logic;
+    signal   tx_err             :  std_logic;
+    signal   tx_rdata           :  std_logic_vector(CSR_DATA_WIDTH  -1 downto 0);
+    signal   tx_irq             :  std_logic;
     -------------------------------------------------------------------------------
     -- PTTY_RECV アクセス用信号群.
     -------------------------------------------------------------------------------
-    signal   recv_reg_req       :  std_logic;
-    signal   recv_buf_req       :  std_logic;
-    signal   recv_ack           :  std_logic;
-    signal   recv_err           :  std_logic;
-    signal   recv_rdata         :  std_logic_vector(CSR_DATA_WIDTH  -1 downto 0);
-    signal   recv_irq           :  std_logic;
+    signal   rx_regs_req       :  std_logic;
+    signal   rxd_buf_req       :  std_logic;
+    signal   rx_ack            :  std_logic;
+    signal   rx_err            :  std_logic;
+    signal   rx_rdata          :  std_logic_vector(CSR_DATA_WIDTH  -1 downto 0);
+    signal   rx_irq            :  std_logic;
     -------------------------------------------------------------------------------
     -- レジスタマップ
     -------------------------------------------------------------------------------
-    constant SEND_REG_AREA_LO   :  integer := 16#0010#;
-    constant SEND_REG_AREA_HI   :  integer := 16#0017#;
-    constant RECV_REG_AREA_LO   :  integer := 16#0020#;
-    constant RECV_REG_AREA_HI   :  integer := 16#0027#;
-    constant SEND_BUF_AREA_LO   :  integer := 16#0800#;
-    constant SEND_BUF_AREA_HI   :  integer := 16#0BFF#;
-    constant RECV_BUF_AREA_LO   :  integer := 16#0C00#;
-    constant RECV_BUF_AREA_HI   :  integer := 16#0FFF#;
+    constant TX_REGS_AREA_LO   :  integer := 16#0010#;
+    constant TX_REGS_AREA_HI   :  integer := 16#001F#;
+    constant RX_REGS_AREA_LO   :  integer := 16#0020#;
+    constant RX_REGS_AREA_HI   :  integer := 16#002F#;
+    constant TXD_BUF_AREA_LO   :  integer := 16#0800#;
+    constant TXD_BUF_AREA_HI   :  integer := 16#0BFF#;
+    constant RXD_BUF_AREA_LO   :  integer := 16#0C00#;
+    constant RXD_BUF_AREA_HI   :  integer := 16#0FFF#;
     -------------------------------------------------------------------------------
     -- PTTY_TX
     -------------------------------------------------------------------------------
     component  PTTY_TX
         generic (
-            TXD_BUF_DEPTH   : integer range 4 to    9 :=  7;
+            TXD_BUF_DEPTH   : integer range 4 to   15 :=  7;
+            TXD_BUF_BASE    : integer := 0;
             CSR_ADDR_WIDTH  : integer range 1 to   64 := 32;
             CSR_DATA_WIDTH  : integer range 8 to 1024 := 32;
             TXD_BYTES       : integer := 1;
@@ -248,7 +249,8 @@ architecture RTL of PTTY_AXI4 is
     -------------------------------------------------------------------------------
     component  PTTY_RX
         generic (
-            RXD_BUF_DEPTH   : integer range 4 to    9 :=  7;
+            RXD_BUF_DEPTH   : integer range 4 to   15 :=  7;
+            RXD_BUF_BASE    : integer := 0;
             CSR_ADDR_WIDTH  : integer range 1 to   64 := 32;
             CSR_DATA_WIDTH  : integer range 8 to 1024 := 32;
             RXD_BYTES       : integer := 1;
@@ -363,63 +365,64 @@ begin
     -------------------------------------------------------------------------------
     process (regs_req, regs_addr)
         variable u_addr       : unsigned(CSR_ADDR_WIDTH-1 downto 0);
-        variable send_reg_sel : boolean;
-        variable send_buf_sel : boolean;
-        variable recv_reg_sel : boolean;
-        variable recv_buf_sel : boolean;
+        variable tx_regs_sel : boolean;
+        variable txd_buf_sel : boolean;
+        variable rx_regs_sel : boolean;
+        variable rxd_buf_sel : boolean;
     begin
         if (regs_req = '1') then
             u_addr       := to_01(unsigned(regs_addr));
-            send_reg_sel := (SEND_REG_AREA_LO <= u_addr and u_addr <= SEND_REG_AREA_HI);
-            send_buf_sel := (SEND_BUF_AREA_LO <= u_addr and u_addr <= SEND_BUF_AREA_HI);
-            recv_reg_sel := (RECV_REG_AREA_LO <= u_addr and u_addr <= RECV_REG_AREA_HI);
-            recv_buf_sel := (RECV_BUF_AREA_LO <= u_addr and u_addr <= RECV_BUF_AREA_HI);
-            if (send_reg_sel) then
-                send_reg_req <= '1';
+            tx_regs_sel := (TX_REGS_AREA_LO <= u_addr and u_addr <= TX_REGS_AREA_HI);
+            txd_buf_sel := (TXD_BUF_AREA_LO <= u_addr and u_addr <= TXD_BUF_AREA_HI);
+            rx_regs_sel := (RX_REGS_AREA_LO <= u_addr and u_addr <= RX_REGS_AREA_HI);
+            rxd_buf_sel := (RXD_BUF_AREA_LO <= u_addr and u_addr <= RXD_BUF_AREA_HI);
+            if (tx_regs_sel) then
+                tx_regs_req <= '1';
             else
-                send_reg_req <= '0';
+                tx_regs_req <= '0';
             end if;
-            if (send_buf_sel) then
-                send_buf_req <= '1';
+            if (txd_buf_sel) then
+                txd_buf_req <= '1';
             else
-                send_buf_req <= '0';
+                txd_buf_req <= '0';
             end if;
-            if (recv_reg_sel) then
-                recv_reg_req <= '1';
+            if (rx_regs_sel) then
+                rx_regs_req <= '1';
             else
-                recv_reg_req <= '0';
+                rx_regs_req <= '0';
             end if;
-            if (recv_buf_sel) then
-                recv_buf_req <= '1';
+            if (rxd_buf_sel) then
+                rxd_buf_req <= '1';
             else
-                recv_buf_req <= '0';
+                rxd_buf_req <= '0';
             end if;
-            if (send_reg_sel = FALSE) and
-               (send_buf_sel = FALSE) and
-               (recv_reg_sel = FALSE) and
-               (recv_buf_sel = FALSE) then
+            if (tx_regs_sel = FALSE) and
+               (txd_buf_sel = FALSE) and
+               (rx_regs_sel = FALSE) and
+               (rxd_buf_sel = FALSE) then
                 regs_err_req <= '1';
             else
                 regs_err_req <= '0';
             end if;
         else
-                send_reg_req <= '0';
-                send_buf_req <= '0';
-                recv_reg_req <= '0';
-                recv_buf_req <= '0';
+                tx_regs_req <= '0';
+                txd_buf_req <= '0';
+                rx_regs_req <= '0';
+                rxd_buf_req <= '0';
                 regs_err_req <= '0';
         end if;
     end process;
     regs_err_ack <= regs_err_req;
-    regs_ack     <= send_ack   or recv_ack or regs_err_ack;
-    regs_err     <= send_err   or recv_err;
-    regs_rdata   <= send_rdata or recv_rdata;
+    regs_ack     <= tx_ack   or rx_ack or regs_err_ack;
+    regs_err     <= tx_err   or rx_err;
+    regs_rdata   <= tx_rdata or rx_rdata;
     -------------------------------------------------------------------------------
     -- 
     -------------------------------------------------------------------------------
     TX:  PTTY_TX                                   -- 
         generic map (                              -- 
-            TXD_BUF_DEPTH   => TXD_BUF_DEPTH     , -- 
+            TXD_BUF_DEPTH   => TXD_BUF_DEPTH     , --
+            TXD_BUF_BASE    => TXD_BUF_AREA_LO    , --
             CSR_ADDR_WIDTH  => CSR_ADDR_WIDTH    , -- 
             CSR_DATA_WIDTH  => CSR_DATA_WIDTH    , -- 
             TXD_BYTES       => TXD_BYTES         , -- 
@@ -434,13 +437,13 @@ begin
             CSR_ADDR        => regs_addr         , -- In  :
             CSR_BEN         => regs_ben          , -- In  :
             CSR_WDATA       => regs_wdata        , -- In  :
-            CSR_RDATA       => send_rdata        , -- Out :
-            CSR_REG_REQ     => send_reg_req      , -- In  :
-            CSR_BUF_REQ     => send_buf_req      , -- In  :
+            CSR_RDATA       => tx_rdata        , -- Out :
+            CSR_REG_REQ     => tx_regs_req      , -- In  :
+            CSR_BUF_REQ     => txd_buf_req      , -- In  :
             CSR_WRITE       => regs_write        , -- In  :
-            CSR_ACK         => send_ack          , -- Out :
-            CSR_ERR         => send_err          , -- Out :
-            CSR_IRQ         => send_irq          , -- Out :
+            CSR_ACK         => tx_ack          , -- Out :
+            CSR_ERR         => tx_err          , -- Out :
+            CSR_IRQ         => tx_irq          , -- Out :
             TXD_CLK         => TXD_CLK           , -- In  :
             TXD_CKE         => '1'               , -- In  :
             TXD_DATA        => TXD_TDATA         , -- Out :
@@ -455,6 +458,7 @@ begin
     RX: PTTY_RX                                    -- 
         generic map (                              -- 
             RXD_BUF_DEPTH   => RXD_BUF_DEPTH     , --
+            RXD_BUF_BASE    => RXD_BUF_AREA_LO    , --
             CSR_ADDR_WIDTH  => CSR_ADDR_WIDTH    , --
             CSR_DATA_WIDTH  => CSR_DATA_WIDTH    , --
             RXD_BYTES       => RXD_BYTES         , --
@@ -469,13 +473,13 @@ begin
             CSR_ADDR        => regs_addr         , -- In  :
             CSR_BEN         => regs_ben          , -- In  :
             CSR_WDATA       => regs_wdata        , -- In  :
-            CSR_RDATA       => recv_rdata        , -- Out :
-            CSR_REG_REQ     => recv_reg_req      , -- In  :
-            CSR_BUF_REQ     => recv_buf_req      , -- In  :
+            CSR_RDATA       => rx_rdata        , -- Out :
+            CSR_REG_REQ     => rx_regs_req      , -- In  :
+            CSR_BUF_REQ     => rxd_buf_req      , -- In  :
             CSR_WRITE       => regs_write        , -- In  :
-            CSR_ACK         => recv_ack          , -- Out :
-            CSR_ERR         => recv_err          , -- Out :
-            CSR_IRQ         => recv_irq          , -- Out :
+            CSR_ACK         => rx_ack          , -- Out :
+            CSR_ERR         => rx_err          , -- Out :
+            CSR_IRQ         => rx_irq          , -- Out :
             RXD_CLK         => RXD_CLK           , -- In  :
             RXD_CKE         => '1'               , -- In  :
             RXD_DATA        => RXD_TDATA         , -- In  :
@@ -487,5 +491,5 @@ begin
     -------------------------------------------------------------------------------
     --
     -------------------------------------------------------------------------------
-    CSR_IRQ <= '1' when (send_irq = '1' or recv_irq = '1') else '0';
+    CSR_IRQ <= '1' when (tx_irq = '1' or rx_irq = '1') else '0';
 end RTL;
