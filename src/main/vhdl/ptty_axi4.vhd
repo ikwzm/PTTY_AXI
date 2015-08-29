@@ -2,7 +2,7 @@
 --!     @file    ptty_axi4.vhd
 --!     @brief   PTTY_AXI4
 --!     @version 0.1.0
---!     @date    2015/8/26
+--!     @date    2015/8/29
 --!     @author  Ichiro Kawazome <ichiro_k@ca2.so-net.ne.jp>
 -----------------------------------------------------------------------------------
 --
@@ -422,7 +422,7 @@ begin
     TX:  PTTY_TX                                   -- 
         generic map (                              -- 
             TXD_BUF_DEPTH   => TXD_BUF_DEPTH     , --
-            TXD_BUF_BASE    => TXD_BUF_AREA_LO    , --
+            TXD_BUF_BASE    => TXD_BUF_AREA_LO   , --
             CSR_ADDR_WIDTH  => CSR_ADDR_WIDTH    , -- 
             CSR_DATA_WIDTH  => CSR_DATA_WIDTH    , -- 
             TXD_BYTES       => TXD_BYTES         , -- 
@@ -437,13 +437,13 @@ begin
             CSR_ADDR        => regs_addr         , -- In  :
             CSR_BEN         => regs_ben          , -- In  :
             CSR_WDATA       => regs_wdata        , -- In  :
-            CSR_RDATA       => tx_rdata        , -- Out :
-            CSR_REG_REQ     => tx_regs_req      , -- In  :
-            CSR_BUF_REQ     => txd_buf_req      , -- In  :
+            CSR_RDATA       => tx_rdata          , -- Out :
+            CSR_REG_REQ     => tx_regs_req       , -- In  :
+            CSR_BUF_REQ     => txd_buf_req       , -- In  :
             CSR_WRITE       => regs_write        , -- In  :
-            CSR_ACK         => tx_ack          , -- Out :
-            CSR_ERR         => tx_err          , -- Out :
-            CSR_IRQ         => tx_irq          , -- Out :
+            CSR_ACK         => tx_ack            , -- Out :
+            CSR_ERR         => tx_err            , -- Out :
+            CSR_IRQ         => tx_irq            , -- Out :
             TXD_CLK         => TXD_CLK           , -- In  :
             TXD_CKE         => '1'               , -- In  :
             TXD_DATA        => TXD_TDATA         , -- Out :
@@ -458,7 +458,7 @@ begin
     RX: PTTY_RX                                    -- 
         generic map (                              -- 
             RXD_BUF_DEPTH   => RXD_BUF_DEPTH     , --
-            RXD_BUF_BASE    => RXD_BUF_AREA_LO    , --
+            RXD_BUF_BASE    => RXD_BUF_AREA_LO   , --
             CSR_ADDR_WIDTH  => CSR_ADDR_WIDTH    , --
             CSR_DATA_WIDTH  => CSR_DATA_WIDTH    , --
             RXD_BYTES       => RXD_BYTES         , --
@@ -473,13 +473,13 @@ begin
             CSR_ADDR        => regs_addr         , -- In  :
             CSR_BEN         => regs_ben          , -- In  :
             CSR_WDATA       => regs_wdata        , -- In  :
-            CSR_RDATA       => rx_rdata        , -- Out :
-            CSR_REG_REQ     => rx_regs_req      , -- In  :
-            CSR_BUF_REQ     => rxd_buf_req      , -- In  :
+            CSR_RDATA       => rx_rdata          , -- Out :
+            CSR_REG_REQ     => rx_regs_req       , -- In  :
+            CSR_BUF_REQ     => rxd_buf_req       , -- In  :
             CSR_WRITE       => regs_write        , -- In  :
-            CSR_ACK         => rx_ack          , -- Out :
-            CSR_ERR         => rx_err          , -- Out :
-            CSR_IRQ         => rx_irq          , -- Out :
+            CSR_ACK         => rx_ack            , -- Out :
+            CSR_ERR         => rx_err            , -- Out :
+            CSR_IRQ         => rx_irq            , -- Out :
             RXD_CLK         => RXD_CLK           , -- In  :
             RXD_CKE         => '1'               , -- In  :
             RXD_DATA        => RXD_TDATA         , -- In  :

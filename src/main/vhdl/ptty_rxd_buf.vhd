@@ -2,7 +2,7 @@
 --!     @file    ptty_rxd_buf.vhd
 --!     @brief   Receive Data Buffer for PTTY_AXI4
 --!     @version 0.1.0
---!     @date    2015/8/26
+--!     @date    2015/8/29
 --!     @author  Ichiro Kawazome <ichiro_k@ca2.so-net.ne.jp>
 -----------------------------------------------------------------------------------
 --
@@ -49,7 +49,8 @@ entity  PTTY_RXD_BUF is
                       integer := 2;
         I_BYTES     : --! @brief INTAKE DATA WIDTH :
                       --! 入力側のデータ幅(バイト数)を指定する.
-                      integer := 1;
+                      --! 現時点では入力側のデータ幅は１バイトの場合のみ実装している.
+                      integer range 1 to 1 := 1;
         I_CLK_RATE  : --! @brief INTAKE CLOCK RATE :
                       --! S_CLK_RATEとペアで入力側のクロック(I_CLK)とバッファアクセ
                       --! ス側のクロック(S_CLK)との関係を指定する.

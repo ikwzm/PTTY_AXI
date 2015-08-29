@@ -2,7 +2,7 @@
 --!     @file    ptty_txd_buf.vhd
 --!     @brief   Transimit Data Buffer for PTTY_AXI4
 --!     @version 0.1.0
---!     @date    2015/8/26
+--!     @date    2015/8/29
 --!     @author  Ichiro Kawazome <ichiro_k@ca2.so-net.ne.jp>
 -----------------------------------------------------------------------------------
 --
@@ -53,11 +53,11 @@ entity  PTTY_TXD_BUF is
         O_CLK_RATE  : --! @brief OUTLET CLOCK RATE :
                       --! S_CLK_RATEとペアで出力側のクロック(O_CLK)とバッファアクセ
                       --! ス側のクロック(S_CLK)との関係を指定する.
-                      integer :=  1;
+                      integer := 1;
         S_CLK_RATE  : --! @brief BUFFER ACCESS CLOCK RATE :
                       --! O_CLK_RATEとペアで出力側のクロック(O_CLK)とバッファアクセ
                       --! ス側のクロック(S_CLK)との関係を指定する.
-                      integer :=  1
+                      integer := 1
     );
     port (
     -------------------------------------------------------------------------------
@@ -146,7 +146,6 @@ library PIPEWORK;
 use     PIPEWORK.COMPONENTS.SDPRAM;
 use     PIPEWORK.COMPONENTS.REDUCER;
 use     PIPEWORK.COMPONENTS.CHOPPER;
-use     PIPEWORK.COMPONENTS.QUEUE_REGISTER;
 use     PIPEWORK.COMPONENTS.SYNCRONIZER;
 use     PIPEWORK.COMPONENTS.SYNCRONIZER_INPUT_PENDING_REGISTER;
 architecture RTL of PTTY_TXD_BUF is

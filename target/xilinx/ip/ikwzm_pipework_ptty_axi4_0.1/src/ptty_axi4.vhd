@@ -2,7 +2,7 @@
 --!     @file    ptty_rxd_buf.vhd
 --!     @brief   Receive Data Buffer for PTTY_AXI4
 --!     @version 0.1.0
---!     @date    2015/8/26
+--!     @date    2015/8/29
 --!     @author  Ichiro Kawazome <ichiro_k@ca2.so-net.ne.jp>
 -----------------------------------------------------------------------------------
 --
@@ -49,7 +49,8 @@ entity  PTTY_RXD_BUF is
                       integer := 2;
         I_BYTES     : --! @brief INTAKE DATA WIDTH :
                       --! 入力側のデータ幅(バイト数)を指定する.
-                      integer := 1;
+                      --! 現時点では入力側のデータ幅は１バイトの場合のみ実装している.
+                      integer range 1 to 1 := 1;
         I_CLK_RATE  : --! @brief INTAKE CLOCK RATE :
                       --! S_CLK_RATEとペアで入力側のクロック(I_CLK)とバッファアクセ
                       --! ス側のクロック(S_CLK)との関係を指定する.
@@ -507,7 +508,7 @@ end RTL;
 --!     @file    ptty_txd_buf.vhd
 --!     @brief   Transimit Data Buffer for PTTY_AXI4
 --!     @version 0.1.0
---!     @date    2015/8/26
+--!     @date    2015/8/29
 --!     @author  Ichiro Kawazome <ichiro_k@ca2.so-net.ne.jp>
 -----------------------------------------------------------------------------------
 --
@@ -558,11 +559,11 @@ entity  PTTY_TXD_BUF is
         O_CLK_RATE  : --! @brief OUTLET CLOCK RATE :
                       --! S_CLK_RATEとペアで出力側のクロック(O_CLK)とバッファアクセ
                       --! ス側のクロック(S_CLK)との関係を指定する.
-                      integer :=  1;
+                      integer := 1;
         S_CLK_RATE  : --! @brief BUFFER ACCESS CLOCK RATE :
                       --! O_CLK_RATEとペアで出力側のクロック(O_CLK)とバッファアクセ
                       --! ス側のクロック(S_CLK)との関係を指定する.
-                      integer :=  1
+                      integer := 1
     );
     port (
     -------------------------------------------------------------------------------
@@ -651,7 +652,6 @@ library PIPEWORK;
 use     PIPEWORK.COMPONENTS.SDPRAM;
 use     PIPEWORK.COMPONENTS.REDUCER;
 use     PIPEWORK.COMPONENTS.CHOPPER;
-use     PIPEWORK.COMPONENTS.QUEUE_REGISTER;
 use     PIPEWORK.COMPONENTS.SYNCRONIZER;
 use     PIPEWORK.COMPONENTS.SYNCRONIZER_INPUT_PENDING_REGISTER;
 architecture RTL of PTTY_TXD_BUF is
@@ -1141,7 +1141,7 @@ end RTL;
 --!     @file    ptty_rx
 --!     @brief   PTTY Receive Data Core
 --!     @version 0.1.0
---!     @date    2015/8/26
+--!     @date    2015/8/29
 --!     @author  Ichiro Kawazome <ichiro_k@ca2.so-net.ne.jp>
 -----------------------------------------------------------------------------------
 --
@@ -1437,7 +1437,7 @@ architecture RTL of PTTY_RX is
         generic (
             BUF_DEPTH   : integer := 8;
             BUF_WIDTH   : integer := 2;
-            I_BYTES     : integer := 1;
+            I_BYTES     : integer range 1 to 1 := 1;
             I_CLK_RATE  : integer := 1;
             S_CLK_RATE  : integer := 1
         );
@@ -2279,7 +2279,7 @@ end RTL;
 --!     @file    ptty_axi4.vhd
 --!     @brief   PTTY_AXI4
 --!     @version 0.1.0
---!     @date    2015/8/26
+--!     @date    2015/8/29
 --!     @author  Ichiro Kawazome <ichiro_k@ca2.so-net.ne.jp>
 -----------------------------------------------------------------------------------
 --
@@ -2699,7 +2699,7 @@ begin
     TX:  PTTY_TX                                   -- 
         generic map (                              -- 
             TXD_BUF_DEPTH   => TXD_BUF_DEPTH     , --
-            TXD_BUF_BASE    => TXD_BUF_AREA_LO    , --
+            TXD_BUF_BASE    => TXD_BUF_AREA_LO   , --
             CSR_ADDR_WIDTH  => CSR_ADDR_WIDTH    , -- 
             CSR_DATA_WIDTH  => CSR_DATA_WIDTH    , -- 
             TXD_BYTES       => TXD_BYTES         , -- 
@@ -2714,13 +2714,13 @@ begin
             CSR_ADDR        => regs_addr         , -- In  :
             CSR_BEN         => regs_ben          , -- In  :
             CSR_WDATA       => regs_wdata        , -- In  :
-            CSR_RDATA       => tx_rdata        , -- Out :
-            CSR_REG_REQ     => tx_regs_req      , -- In  :
-            CSR_BUF_REQ     => txd_buf_req      , -- In  :
+            CSR_RDATA       => tx_rdata          , -- Out :
+            CSR_REG_REQ     => tx_regs_req       , -- In  :
+            CSR_BUF_REQ     => txd_buf_req       , -- In  :
             CSR_WRITE       => regs_write        , -- In  :
-            CSR_ACK         => tx_ack          , -- Out :
-            CSR_ERR         => tx_err          , -- Out :
-            CSR_IRQ         => tx_irq          , -- Out :
+            CSR_ACK         => tx_ack            , -- Out :
+            CSR_ERR         => tx_err            , -- Out :
+            CSR_IRQ         => tx_irq            , -- Out :
             TXD_CLK         => TXD_CLK           , -- In  :
             TXD_CKE         => '1'               , -- In  :
             TXD_DATA        => TXD_TDATA         , -- Out :
@@ -2735,7 +2735,7 @@ begin
     RX: PTTY_RX                                    -- 
         generic map (                              -- 
             RXD_BUF_DEPTH   => RXD_BUF_DEPTH     , --
-            RXD_BUF_BASE    => RXD_BUF_AREA_LO    , --
+            RXD_BUF_BASE    => RXD_BUF_AREA_LO   , --
             CSR_ADDR_WIDTH  => CSR_ADDR_WIDTH    , --
             CSR_DATA_WIDTH  => CSR_DATA_WIDTH    , --
             RXD_BYTES       => RXD_BYTES         , --
@@ -2750,13 +2750,13 @@ begin
             CSR_ADDR        => regs_addr         , -- In  :
             CSR_BEN         => regs_ben          , -- In  :
             CSR_WDATA       => regs_wdata        , -- In  :
-            CSR_RDATA       => rx_rdata        , -- Out :
-            CSR_REG_REQ     => rx_regs_req      , -- In  :
-            CSR_BUF_REQ     => rxd_buf_req      , -- In  :
+            CSR_RDATA       => rx_rdata          , -- Out :
+            CSR_REG_REQ     => rx_regs_req       , -- In  :
+            CSR_BUF_REQ     => rxd_buf_req       , -- In  :
             CSR_WRITE       => regs_write        , -- In  :
-            CSR_ACK         => rx_ack          , -- Out :
-            CSR_ERR         => rx_err          , -- Out :
-            CSR_IRQ         => rx_irq          , -- Out :
+            CSR_ACK         => rx_ack            , -- Out :
+            CSR_ERR         => rx_err            , -- Out :
+            CSR_IRQ         => rx_irq            , -- Out :
             RXD_CLK         => RXD_CLK           , -- In  :
             RXD_CKE         => '1'               , -- In  :
             RXD_DATA        => RXD_TDATA         , -- In  :

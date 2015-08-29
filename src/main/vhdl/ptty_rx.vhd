@@ -2,7 +2,7 @@
 --!     @file    ptty_rx
 --!     @brief   PTTY Receive Data Core
 --!     @version 0.1.0
---!     @date    2015/8/26
+--!     @date    2015/8/29
 --!     @author  Ichiro Kawazome <ichiro_k@ca2.so-net.ne.jp>
 -----------------------------------------------------------------------------------
 --
@@ -298,7 +298,7 @@ architecture RTL of PTTY_RX is
         generic (
             BUF_DEPTH   : integer := 8;
             BUF_WIDTH   : integer := 2;
-            I_BYTES     : integer := 1;
+            I_BYTES     : integer range 1 to 1 := 1;
             I_CLK_RATE  : integer := 1;
             S_CLK_RATE  : integer := 1
         );
