@@ -2,7 +2,7 @@
 --!     @file    ptty_rx
 --!     @brief   PTTY Receive Data Core
 --!     @version 0.1.0
---!     @date    2015/8/29
+--!     @date    2015/9/6
 --!     @author  Ichiro Kawazome <ichiro_k@ca2.so-net.ne.jp>
 -----------------------------------------------------------------------------------
 --
@@ -41,6 +41,10 @@ use     ieee.std_logic_1164.all;
 -----------------------------------------------------------------------------------
 entity  PTTY_RX is
     generic (
+        PORT_NUM        : --! @brief TRANSMIT PORT NUMBER :
+                          --! ポート番号を指定する.
+                          --! ヘッダレジスタの値に反映される.
+                          integer range 0 to 99   :=  0;
         RXD_BUF_DEPTH   : --! @brief RECEIVE DATA BUFFER DEPTH :
                           --! バッファの容量(バイト数)を２のべき乗値で指定する.
                           integer range 4 to   15 :=  7;
@@ -193,7 +197,14 @@ architecture RTL of PTTY_RX is
     constant   REGS_HEADER_BITS   :  integer := 32;
     constant   REGS_HEADER_LO     :  integer := 8*REGS_HEADER_ADDR    + 0;
     constant   REGS_HEADER_HI     :  integer := REGS_HEADER_LO        + REGS_HEADER_BITS-1;
-    constant   REGS_HEADER_VALUE  :  std_logic_vector(REGS_HEADER_BITS-1 downto 0) := (others => '0');
+    constant   REGS_HEADER_0      :  std_logic_vector(7 downto 0) := "01010010"; -- 'R'
+    constant   REGS_HEADER_1      :  std_logic_vector(7 downto 0) := "01011000"; -- 'X'
+    constant   REGS_HEADER_2      :  std_logic_vector(7 downto 0)
+                                  := "0011" & std_logic_vector(to_unsigned((PORT_NUM mod 10), 4));
+    constant   REGS_HEADER_3      :  std_logic_vector(7 downto 0)
+                                  := "0011" & std_logic_vector(to_unsigned((PORT_NUM  /  10), 4));
+    constant   REGS_HEADER_VALUE  :  std_logic_vector(REGS_HEADER_BITS-1 downto 0)
+                                  := REGS_HEADER_3 & REGS_HEADER_2 & REGS_HEADER_1 & REGS_HEADER_0;
     -------------------------------------------------------------------------------
     -- Configuration[31:0]
     -------------------------------------------------------------------------------
@@ -271,8 +282,13 @@ architecture RTL of PTTY_RX is
     constant   REGS_CTRL_RSV1_POS :  integer := 8*REGS_CTRL_ADDR      +  1;
     constant   REGS_CTRL_RSV0_POS :  integer := 8*REGS_CTRL_ADDR      +  0;
     signal     ctrl_reset_bit     :  std_logic;
+    signal     ctrl_reset_load    :  std_logic;
+    signal     ctrl_reset_data    :  std_logic;
     signal     ctrl_pause_bit     :  std_logic;
+    signal     ctrl_pause_load    :  std_logic;
+    signal     ctrl_pause_data    :  std_logic;
     signal     ctrl_abort_bit     :  std_logic;
+    signal     ctrl_abort_busy    :  std_logic;
     signal     ctrl_pull_bit      :  std_logic;
     signal     ctrl_ready_bit     :  std_logic;
     -------------------------------------------------------------------------------
@@ -320,6 +336,10 @@ architecture RTL of PTTY_RX is
             BUF_LAST    : out std_logic;
             PULL_SIZE   : in  std_logic_vector(BUF_DEPTH   downto 0);
             PULL_LOAD   : in  std_logic;
+            ABORT_START : in  std_logic;
+            ABORT_BUSY  : out std_logic;
+            PAUSE_DATA  : in  std_logic;
+            PAUSE_LOAD  : in  std_logic;
             RESET_DATA  : in  std_logic;
             RESET_LOAD  : in  std_logic
         );
@@ -457,35 +477,63 @@ begin
     -------------------------------------------------------------------------------
     process (CSR_CLK, RST) begin
         if     (RST = '1') then
-                ctrl_reset_bit <= '0';
+                ctrl_reset_bit  <= '0';
+                ctrl_reset_load <= '0';
+                ctrl_reset_data <= '0';
         elsif  (CSR_CLK'event and CSR_CLK = '1') then
             if (CLR = '1') then
-                ctrl_reset_bit <= '0';
-            elsif (regs_load(REGS_CTRL_RESET_POS) = '1') then
-                ctrl_reset_bit <= regs_wbit(REGS_CTRL_RESET_POS);
+                ctrl_reset_bit  <= '0';
+                ctrl_reset_load <= '0';
+                ctrl_reset_data <= '0';
+            else
+                if (regs_load(REGS_CTRL_RESET_POS) = '1') then
+                    ctrl_reset_bit <= regs_wbit(REGS_CTRL_RESET_POS);
+                end if;
+                ctrl_reset_load <= regs_load(REGS_CTRL_RESET_POS);
+                ctrl_reset_data <= regs_wbit(REGS_CTRL_RESET_POS);
             end if;
         end if;
     end process;
     regs_rbit(REGS_CTRL_RESET_POS) <= ctrl_reset_bit;
     -------------------------------------------------------------------------------
-    -- Control[6:0]
+    -- Control[6] : ctrl_pause_bit
+    -------------------------------------------------------------------------------
+    process (CSR_CLK, RST) begin
+        if     (RST = '1') then
+                ctrl_pause_bit  <= '0';
+                ctrl_pause_load <= '0';
+                ctrl_pause_data <= '0';
+        elsif  (CSR_CLK'event and CSR_CLK = '1') then
+            if (CLR = '1') then
+                ctrl_pause_bit  <= '0';
+                ctrl_pause_load <= '0';
+                ctrl_pause_data <= '0';
+            else
+                if (ctrl_reset_bit = '1') then
+                    ctrl_pause_bit <= '0';
+                elsif (regs_load(REGS_CTRL_PAUSE_POS) = '1') then
+                    ctrl_pause_bit <= regs_wbit(REGS_CTRL_PAUSE_POS);
+                end if;
+                ctrl_pause_load <= regs_load(REGS_CTRL_PAUSE_POS);
+                ctrl_pause_data <= regs_wbit(REGS_CTRL_PAUSE_POS);
+            end if;
+        end if;
+    end process;
+    regs_rbit(REGS_CTRL_PAUSE_POS) <= ctrl_pause_bit;
+    -------------------------------------------------------------------------------
+    -- Control[5:0]
     -------------------------------------------------------------------------------
     process (CSR_CLK, RST) begin
         if (RST = '1') then
-                ctrl_pause_bit <= '0';
                 ctrl_abort_bit <= '0';
                 ctrl_pull_bit  <= '0';
                 ctrl_ready_bit <= '0';
         elsif (CSR_CLK'event and CSR_CLK = '1') then
             if (CLR = '1' or ctrl_reset_bit = '1') then
-                ctrl_pause_bit <= '0';
                 ctrl_abort_bit <= '0';
                 ctrl_pull_bit  <= '0';
                 ctrl_ready_bit <= '0';
             else
-                if (regs_load(REGS_CTRL_PAUSE_POS) = '1') then
-                    ctrl_pause_bit <= regs_wbit(REGS_CTRL_PAUSE_POS);
-                end if;
                 if (regs_load(REGS_CTRL_ABORT_POS) = '1') then
                     ctrl_abort_bit <= regs_wbit(REGS_CTRL_ABORT_POS);
                 else
@@ -502,11 +550,7 @@ begin
             end if;
         end if;
     end process;
-    -------------------------------------------------------------------------------
-    --
-    -------------------------------------------------------------------------------
-    regs_rbit(REGS_CTRL_PAUSE_POS) <= ctrl_pause_bit;
-    regs_rbit(REGS_CTRL_ABORT_POS) <= ctrl_abort_bit;
+    regs_rbit(REGS_CTRL_ABORT_POS) <= '1' when (ctrl_abort_bit = '1' and ctrl_abort_busy = '1') else '0';
     regs_rbit(REGS_CTRL_PULL_POS ) <= ctrl_pull_bit;
     regs_rbit(REGS_CTRL_RSV3_POS ) <= '0';
     regs_rbit(REGS_CTRL_READY_POS) <= ctrl_ready_bit;
@@ -515,34 +559,38 @@ begin
     -------------------------------------------------------------------------------
     --
     -------------------------------------------------------------------------------
-    BUF: PTTY_RXD_BUF                                          -- 
-        generic map (                                          -- 
-            BUF_DEPTH       => RXD_BUF_DEPTH                 , --
-            BUF_WIDTH       => RXD_BUF_WIDTH                 , --
-            I_BYTES         => RXD_BYTES                     , --
-            I_CLK_RATE      => RXD_CLK_RATE                  , --
-            S_CLK_RATE      => CSR_CLK_RATE                    -- 
-        )
-        port map (                                             -- 
-            RST             => RST                           , -- In  :
-            I_CLK           => RXD_CLK                       , -- In  :
-            I_CKE           => RXD_CKE                       , -- In  :
-            I_DATA          => RXD_DATA                      , -- In  :
-            I_STRB          => RXD_STRB                      , -- In  :
-            I_LAST          => RXD_LAST                      , -- In  :
-            I_VALID         => RXD_VALID                     , -- In  :
-            I_READY         => RXD_READY                     , -- Out :
-            S_CLK           => CSR_CLK                       , -- In  :
-            S_CKE           => CSR_CKE                       , -- In  :
-            BUF_RDATA       => rbuf_rdata                    , -- Out :
-            BUF_RADDR       => rbuf_addr                     , -- In  :
-            BUF_COUNT       => rbuf_count                    , -- Out :
-            BUF_CADDR       => rbuf_offset                   , -- Out :
-            BUF_LAST        => rbuf_last                     , -- Out :
-            PULL_SIZE       => rbuf_pull_size                , -- In  :
-            PULL_LOAD       => ctrl_pull_bit                 , -- In  :
-            RESET_DATA      => regs_wbit(REGS_CTRL_RESET_POS), -- In  :
-            RESET_LOAD      => regs_load(REGS_CTRL_RESET_POS)  -- In  :
+    BUF: PTTY_RXD_BUF                                  -- 
+        generic map (                                  -- 
+            BUF_DEPTH       => RXD_BUF_DEPTH         , --
+            BUF_WIDTH       => RXD_BUF_WIDTH         , --
+            I_BYTES         => RXD_BYTES             , --
+            I_CLK_RATE      => RXD_CLK_RATE          , --
+            S_CLK_RATE      => CSR_CLK_RATE            -- 
+        )                                              -- 
+        port map (                                     -- 
+            RST             => RST                   , -- In  :
+            I_CLK           => RXD_CLK               , -- In  :
+            I_CKE           => RXD_CKE               , -- In  :
+            I_DATA          => RXD_DATA              , -- In  :
+            I_STRB          => RXD_STRB              , -- In  :
+            I_LAST          => RXD_LAST              , -- In  :
+            I_VALID         => RXD_VALID             , -- In  :
+            I_READY         => RXD_READY             , -- Out :
+            S_CLK           => CSR_CLK               , -- In  :
+            S_CKE           => CSR_CKE               , -- In  :
+            BUF_RDATA       => rbuf_rdata            , -- Out :
+            BUF_RADDR       => rbuf_addr             , -- In  :
+            BUF_COUNT       => rbuf_count            , -- Out :
+            BUF_CADDR       => rbuf_offset           , -- Out :
+            BUF_LAST        => rbuf_last             , -- Out :
+            PULL_SIZE       => rbuf_pull_size        , -- In  :
+            PULL_LOAD       => ctrl_pull_bit         , -- In  :
+            ABORT_START     => ctrl_abort_bit        , -- In  :
+            ABORT_BUSY      => ctrl_abort_busy       , -- In  :
+            PAUSE_DATA      => ctrl_pause_data       , -- In  :
+            PAUSE_LOAD      => ctrl_pause_load       , -- In  :
+            RESET_DATA      => ctrl_reset_data       , -- In  :
+            RESET_LOAD      => ctrl_reset_load         -- In  :
         );
 end RTL;
 

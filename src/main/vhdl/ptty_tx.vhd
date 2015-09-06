@@ -2,7 +2,7 @@
 --!     @file    ptty_tx
 --!     @brief   PTTY Transimit Data Core
 --!     @version 0.1.0
---!     @date    2015/8/26
+--!     @date    2015/9/5
 --!     @author  Ichiro Kawazome <ichiro_k@ca2.so-net.ne.jp>
 -----------------------------------------------------------------------------------
 --
@@ -41,6 +41,10 @@ use     ieee.std_logic_1164.all;
 -----------------------------------------------------------------------------------
 entity  PTTY_TX is
     generic (
+        PORT_NUM        : --! @brief TRANSMIT PORT NUMBER :
+                          --! ポート番号を指定する.
+                          --! ヘッダレジスタの値に反映される.
+                          integer range 0 to 99   :=  0;
         TXD_BUF_DEPTH   : --! @brief TRANSMIT DATA BUFFER DEPTH :
                           --! バッファの容量(バイト数)を２のべき乗値で指定する.
                           integer range 4 to   15 :=  7;
@@ -194,7 +198,14 @@ architecture RTL of PTTY_TX is
     constant   REGS_HEADER_BITS   :  integer := 32;
     constant   REGS_HEADER_LO     :  integer := 8*REGS_HEADER_ADDR    + 0;
     constant   REGS_HEADER_HI     :  integer := REGS_HEADER_LO        + REGS_HEADER_BITS-1;
-    constant   REGS_HEADER_VALUE  :  std_logic_vector(REGS_HEADER_BITS-1 downto 0) := (others => '0');
+    constant   REGS_HEADER_0      :  std_logic_vector(7 downto 0) := "01010100"; -- 'T'
+    constant   REGS_HEADER_1      :  std_logic_vector(7 downto 0) := "01011000"; -- 'X'
+    constant   REGS_HEADER_2      :  std_logic_vector(7 downto 0)
+                                  := "0011" & std_logic_vector(to_unsigned((PORT_NUM mod 10), 4));
+    constant   REGS_HEADER_3      :  std_logic_vector(7 downto 0)
+                                  := "0011" & std_logic_vector(to_unsigned((PORT_NUM  /  10), 4));
+    constant   REGS_HEADER_VALUE  :  std_logic_vector(REGS_HEADER_BITS-1 downto 0)
+                                  := REGS_HEADER_3 & REGS_HEADER_2 & REGS_HEADER_1 & REGS_HEADER_0;
     -------------------------------------------------------------------------------
     -- Configuration[31:0]
     -------------------------------------------------------------------------------
@@ -269,8 +280,13 @@ architecture RTL of PTTY_TX is
     constant   REGS_CTRL_RSV1_POS :  integer := 8*REGS_CTRL_ADDR      +  1;
     constant   REGS_CTRL_LAST_POS :  integer := 8*REGS_CTRL_ADDR      +  0;
     signal     ctrl_reset_bit     :  std_logic;
+    signal     ctrl_reset_load    :  std_logic;
+    signal     ctrl_reset_data    :  std_logic;
     signal     ctrl_pause_bit     :  std_logic;
+    signal     ctrl_pause_load    :  std_logic;
+    signal     ctrl_pause_data    :  std_logic;
     signal     ctrl_abort_bit     :  std_logic;
+    signal     ctrl_abort_busy    :  std_logic;
     signal     ctrl_push_bit      :  std_logic;
     signal     ctrl_done_bit      :  std_logic;
     signal     ctrl_last_bit      :  std_logic;
@@ -321,6 +337,10 @@ architecture RTL of PTTY_TX is
             PUSH_SIZE   : in  std_logic_vector(BUF_DEPTH   downto 0);
             PUSH_LAST   : in  std_logic;
             PUSH_LOAD   : in  std_logic;
+            ABORT_START : in  std_logic;
+            ABORT_BUSY  : out std_logic;
+            PAUSE_DATA  : in  std_logic;
+            PAUSE_LOAD  : in  std_logic;
             RESET_DATA  : in  std_logic;
             RESET_LOAD  : in  std_logic
         );
@@ -347,39 +367,39 @@ begin
     -------------------------------------------------------------------------------
     -- 
     -------------------------------------------------------------------------------
-    DEC: REGISTER_ACCESS_ADAPTER                               -- 
-        generic map (                                          -- 
-            ADDR_WIDTH      => REGS_ADDR_WIDTH               , -- 
-            DATA_WIDTH      => CSR_DATA_WIDTH                , -- 
-            WBIT_MIN        => regs_wbit'low                 , -- 
-            WBIT_MAX        => regs_wbit'high                , -- 
-            RBIT_MIN        => regs_rbit'low                 , -- 
-            RBIT_MAX        => regs_rbit'high                , -- 
-            I_CLK_RATE      => 1                             , -- 
-            O_CLK_RATE      => 1                             , -- 
-            O_CLK_REGS      => 1                               -- 
-        )                                                      -- 
-        port map (                                             -- 
-            RST             => RST                           , -- In  :
-            I_CLK           => CSR_CLK                       , -- In  :
-            I_CLR           => CLR                           , -- In  :
-            I_CKE           => '1'                           , -- In  :
-            I_REQ           => CSR_REG_REQ                   , -- In  :
-            I_SEL           => '1'                           , -- In  :
-            I_WRITE         => CSR_WRITE                     , -- In  :
-            I_ADDR          => regs_addr                     , -- In  :
-            I_BEN           => CSR_BEN                       , -- In  :
-            I_WDATA         => CSR_WDATA                     , -- In  :
-            I_RDATA         => regs_rdata                    , -- Out :
-            I_ACK           => regs_ack                      , -- Out :
-            I_ERR           => regs_err                      , -- Out :
-            O_CLK           => CSR_CLK                       , -- In  :
-            O_CLR           => CLR                           , -- In  :
-            O_CKE           => '1'                           , -- In  :
-            O_WDATA         => regs_wbit                     , -- Out :
-            O_WLOAD         => regs_load                     , -- Out :
-            O_RDATA         => regs_rbit                       -- In  :
-        );                                                     -- 
+    DEC: REGISTER_ACCESS_ADAPTER                       -- 
+        generic map (                                  -- 
+            ADDR_WIDTH      => REGS_ADDR_WIDTH       , -- 
+            DATA_WIDTH      => CSR_DATA_WIDTH        , -- 
+            WBIT_MIN        => regs_wbit'low         , -- 
+            WBIT_MAX        => regs_wbit'high        , -- 
+            RBIT_MIN        => regs_rbit'low         , -- 
+            RBIT_MAX        => regs_rbit'high        , -- 
+            I_CLK_RATE      => 1                     , -- 
+            O_CLK_RATE      => 1                     , -- 
+            O_CLK_REGS      => 1                       -- 
+        )                                              -- 
+        port map (                                     -- 
+            RST             => RST                   , -- In  :
+            I_CLK           => CSR_CLK               , -- In  :
+            I_CLR           => CLR                   , -- In  :
+            I_CKE           => '1'                   , -- In  :
+            I_REQ           => CSR_REG_REQ           , -- In  :
+            I_SEL           => '1'                   , -- In  :
+            I_WRITE         => CSR_WRITE             , -- In  :
+            I_ADDR          => regs_addr             , -- In  :
+            I_BEN           => CSR_BEN               , -- In  :
+            I_WDATA         => CSR_WDATA             , -- In  :
+            I_RDATA         => regs_rdata            , -- Out :
+            I_ACK           => regs_ack              , -- Out :
+            I_ERR           => regs_err              , -- Out :
+            O_CLK           => CSR_CLK               , -- In  :
+            O_CLR           => CLR                   , -- In  :
+            O_CKE           => '1'                   , -- In  :
+            O_WDATA         => regs_wbit             , -- Out :
+            O_WLOAD         => regs_load             , -- Out :
+            O_RDATA         => regs_rbit               -- In  :
+        );                                             -- 
     -------------------------------------------------------------------------------
     -- Header[31:0]
     -------------------------------------------------------------------------------
@@ -501,35 +521,63 @@ begin
     -------------------------------------------------------------------------------
     process (CSR_CLK, RST) begin
         if     (RST = '1') then
-                ctrl_reset_bit <= '0';
+                ctrl_reset_bit  <= '0';
+                ctrl_reset_load <= '0';
+                ctrl_reset_data <= '0';
         elsif  (CSR_CLK'event and CSR_CLK = '1') then
             if (CLR = '1') then
-                ctrl_reset_bit <= '0';
-            elsif (regs_load(REGS_CTRL_RESET_POS) = '1') then
-                ctrl_reset_bit <= regs_wbit(REGS_CTRL_RESET_POS);
+                ctrl_reset_bit  <= '0';
+                ctrl_reset_load <= '0';
+                ctrl_reset_data <= '0';
+            else
+                if (regs_load(REGS_CTRL_RESET_POS) = '1') then
+                    ctrl_reset_bit <= regs_wbit(REGS_CTRL_RESET_POS);
+                end if;
+                ctrl_reset_load <= regs_load(REGS_CTRL_RESET_POS);
+                ctrl_reset_data <= regs_wbit(REGS_CTRL_RESET_POS);
             end if;
         end if;
     end process;
     regs_rbit(REGS_CTRL_RESET_POS) <= ctrl_reset_bit;
     -------------------------------------------------------------------------------
-    -- Control[6:0] : 
+    -- Control[6] : ctrl_pause_bit
+    -------------------------------------------------------------------------------
+    process (CSR_CLK, RST) begin
+        if     (RST = '1') then
+                ctrl_pause_bit  <= '0';
+                ctrl_pause_load <= '0';
+                ctrl_pause_data <= '0';
+        elsif  (CSR_CLK'event and CSR_CLK = '1') then
+            if (CLR = '1') then
+                ctrl_pause_bit  <= '0';
+                ctrl_pause_load <= '0';
+                ctrl_pause_data <= '0';
+            else
+                if (ctrl_reset_bit = '1') then
+                    ctrl_pause_bit <= '0';
+                elsif (regs_load(REGS_CTRL_PAUSE_POS) = '1') then
+                    ctrl_pause_bit <= regs_wbit(REGS_CTRL_PAUSE_POS);
+                end if;
+                ctrl_pause_load <= regs_load(REGS_CTRL_PAUSE_POS);
+                ctrl_pause_data <= regs_wbit(REGS_CTRL_PAUSE_POS);
+            end if;
+        end if;
+    end process;
+    regs_rbit(REGS_CTRL_PAUSE_POS) <= ctrl_pause_bit;
+    -------------------------------------------------------------------------------
+    -- Control[5:0] : 
     -------------------------------------------------------------------------------
     process (CSR_CLK, RST) begin
         if (RST = '1') then
-                ctrl_pause_bit <= '0';
                 ctrl_abort_bit <= '0';
                 ctrl_push_bit  <= '0';
                 ctrl_last_bit  <= '0';
         elsif (CSR_CLK'event and CSR_CLK = '1') then
             if (CLR = '1' or ctrl_reset_bit = '1') then
-                ctrl_pause_bit <= '0';
                 ctrl_abort_bit <= '0';
                 ctrl_push_bit  <= '0';
                 ctrl_last_bit  <= '0';
             else
-                if (regs_load(REGS_CTRL_PAUSE_POS) = '1') then
-                    ctrl_pause_bit <= regs_wbit(REGS_CTRL_PAUSE_POS);
-                end if;
                 if (regs_load(REGS_CTRL_ABORT_POS) = '1') then
                     ctrl_abort_bit <= regs_wbit(REGS_CTRL_ABORT_POS);
                 else
@@ -546,8 +594,7 @@ begin
             end if;
         end if;
     end process;
-    regs_rbit(REGS_CTRL_PAUSE_POS) <= ctrl_pause_bit;
-    regs_rbit(REGS_CTRL_ABORT_POS) <= ctrl_abort_bit;
+    regs_rbit(REGS_CTRL_ABORT_POS) <= '1' when (ctrl_abort_bit = '1' and ctrl_abort_busy = '1') else '0';
     regs_rbit(REGS_CTRL_PUSH_POS ) <= ctrl_push_bit;
     regs_rbit(REGS_CTRL_RSV3_POS ) <= '0';
     regs_rbit(REGS_CTRL_DONE_POS ) <= ctrl_done_bit;
@@ -556,35 +603,39 @@ begin
     -------------------------------------------------------------------------------
     --
     -------------------------------------------------------------------------------
-    BUF: PTTY_TXD_BUF                                          -- 
-        generic map (                                          -- 
-            BUF_DEPTH       => TXD_BUF_DEPTH                 , --
-            BUF_WIDTH       => TXD_BUF_WIDTH                 , --
-            O_BYTES         => TXD_BYTES                     , --
-            O_CLK_RATE      => TXD_CLK_RATE                  , --
-            S_CLK_RATE      => CSR_CLK_RATE                    --
-        )                                                      -- 
-        port map (                                             -- 
-            RST             => RST                           , -- In  :
-            O_CLK           => TXD_CLK                       , -- In  :
-            O_CKE           => TXD_CKE                       , -- In  :
-            O_DATA          => TXD_DATA                      , -- Out :
-            O_STRB          => TXD_STRB                      , -- Out :
-            O_LAST          => TXD_LAST                      , -- Out :
-            O_VALID         => TXD_VALID                     , -- Out :
-            O_READY         => TXD_READY                     , -- In  :
-            S_CLK           => CSR_CLK                       , -- In  :
-            S_CKE           => CSR_CKE                       , -- In  :
-            BUF_WDATA       => CSR_WDATA                     , -- In  :
-            BUF_WE          => sbuf_we                       , -- In  :
-            BUF_WADDR       => sbuf_addr                     , -- In  :
-            BUF_COUNT       => sbuf_count                    , -- Out :
-            BUF_CADDR       => sbuf_offset                   , -- Out :
-            BUF_LAST        => open                          , -- Out :
-            PUSH_SIZE       => sbuf_push_size                , -- In  :
-            PUSH_LAST       => ctrl_last_bit                 , -- In  :
-            PUSH_LOAD       => ctrl_push_bit                 , -- In  :
-            RESET_DATA      => regs_wbit(REGS_CTRL_RESET_POS), -- In  :
-            RESET_LOAD      => regs_load(REGS_CTRL_RESET_POS)  -- In  :
+    BUF: PTTY_TXD_BUF                                  -- 
+        generic map (                                  -- 
+            BUF_DEPTH       => TXD_BUF_DEPTH         , --
+            BUF_WIDTH       => TXD_BUF_WIDTH         , --
+            O_BYTES         => TXD_BYTES             , --
+            O_CLK_RATE      => TXD_CLK_RATE          , --
+            S_CLK_RATE      => CSR_CLK_RATE            --
+        )                                              -- 
+        port map (                                     -- 
+            RST             => RST                   , -- In  :
+            O_CLK           => TXD_CLK               , -- In  :
+            O_CKE           => TXD_CKE               , -- In  :
+            O_DATA          => TXD_DATA              , -- Out :
+            O_STRB          => TXD_STRB              , -- Out :
+            O_LAST          => TXD_LAST              , -- Out :
+            O_VALID         => TXD_VALID             , -- Out :
+            O_READY         => TXD_READY             , -- In  :
+            S_CLK           => CSR_CLK               , -- In  :
+            S_CKE           => CSR_CKE               , -- In  :
+            BUF_WDATA       => CSR_WDATA             , -- In  :
+            BUF_WE          => sbuf_we               , -- In  :
+            BUF_WADDR       => sbuf_addr             , -- In  :
+            BUF_COUNT       => sbuf_count            , -- Out :
+            BUF_CADDR       => sbuf_offset           , -- Out :
+            BUF_LAST        => open                  , -- Out :
+            PUSH_SIZE       => sbuf_push_size        , -- In  :
+            PUSH_LAST       => ctrl_last_bit         , -- In  :
+            PUSH_LOAD       => ctrl_push_bit         , -- In  :
+            ABORT_START     => ctrl_abort_bit        , -- In  :
+            ABORT_BUSY      => ctrl_abort_busy       , -- In  :
+            PAUSE_DATA      => ctrl_pause_data       , -- In  :
+            PAUSE_LOAD      => ctrl_pause_load       , -- In  :
+            RESET_DATA      => ctrl_reset_data       , -- In  :
+            RESET_LOAD      => ctrl_reset_load         -- In  :
         );
 end RTL;

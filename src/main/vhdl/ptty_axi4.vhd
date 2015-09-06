@@ -212,6 +212,7 @@ architecture RTL of PTTY_AXI4 is
     -------------------------------------------------------------------------------
     component  PTTY_TX
         generic (
+            PORT_NUM        : integer range 0 to   99 :=  0;
             TXD_BUF_DEPTH   : integer range 4 to   15 :=  7;
             TXD_BUF_BASE    : integer := 0;
             CSR_ADDR_WIDTH  : integer range 1 to   64 := 32;
@@ -249,6 +250,7 @@ architecture RTL of PTTY_AXI4 is
     -------------------------------------------------------------------------------
     component  PTTY_RX
         generic (
+            PORT_NUM        : integer range 0 to   99 :=  0;
             RXD_BUF_DEPTH   : integer range 4 to   15 :=  7;
             RXD_BUF_BASE    : integer := 0;
             CSR_ADDR_WIDTH  : integer range 1 to   64 := 32;
@@ -420,7 +422,8 @@ begin
     -- 
     -------------------------------------------------------------------------------
     TX:  PTTY_TX                                   -- 
-        generic map (                              -- 
+        generic map (                              --
+            PORT_NUM        => 0                 , -- 
             TXD_BUF_DEPTH   => TXD_BUF_DEPTH     , --
             TXD_BUF_BASE    => TXD_BUF_AREA_LO   , --
             CSR_ADDR_WIDTH  => CSR_ADDR_WIDTH    , -- 
@@ -457,6 +460,7 @@ begin
     -------------------------------------------------------------------------------
     RX: PTTY_RX                                    -- 
         generic map (                              -- 
+            PORT_NUM        => 0                 , -- 
             RXD_BUF_DEPTH   => RXD_BUF_DEPTH     , --
             RXD_BUF_BASE    => RXD_BUF_AREA_LO   , --
             CSR_ADDR_WIDTH  => CSR_ADDR_WIDTH    , --
