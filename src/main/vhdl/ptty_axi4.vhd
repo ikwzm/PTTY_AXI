@@ -1,8 +1,8 @@
 -----------------------------------------------------------------------------------
 --!     @file    ptty_axi4.vhd
 --!     @brief   PTTY_AXI4
---!     @version 0.1.0
---!     @date    2015/8/20
+--!     @version 0.2.0
+--!     @date    2015/11/2
 --!     @author  Ichiro Kawazome <ichiro_k@ca2.so-net.ne.jp>
 -----------------------------------------------------------------------------------
 --
@@ -41,13 +41,13 @@ use     ieee.std_logic_1164.all;
 -----------------------------------------------------------------------------------
 entity  PTTY_AXI4 is
     generic (
-        SBUF_DEPTH      : integer range  4 to    9 :=  7;
-        RBUF_DEPTH      : integer range  4 to    9 :=  7;
-        C_ADDR_WIDTH    : integer range 12 to   64 := 12;
-        C_DATA_WIDTH    : integer range  8 to 1024 := 32;
-        C_ID_WIDTH      : integer                  :=  8;
-        I_BYTES         : integer range  1 to    1 :=  1;
-        O_BYTES         : integer range  1 to    1 :=  1
+        TXD_BUF_DEPTH   : integer range  4 to    9 :=  7;
+        RXD_BUF_DEPTH   : integer range  4 to    9 :=  7;
+        CSR_ADDR_WIDTH  : integer range 12 to   64 := 12;
+        CSR_DATA_WIDTH  : integer range  8 to 1024 := 32;
+        CSR_ID_WIDTH    : integer                  := 12;
+        RXD_BYTES       : positive                 :=  1;
+        TXD_BYTES       : positive                 :=  1
     );
     port (
     -------------------------------------------------------------------------------
@@ -57,95 +57,95 @@ entity  PTTY_AXI4 is
     -------------------------------------------------------------------------------
     -- Control Status Register I/F Clock.
     -------------------------------------------------------------------------------
-        C_CLK           : in    std_logic;
+        CSR_CLK         : in    std_logic;
     -------------------------------------------------------------------------------
     -- Control Status Register I/F AXI4 Read Address Channel Signals.
     -------------------------------------------------------------------------------
-        C_ARID          : in    std_logic_vector(C_ID_WIDTH    -1 downto 0);
-        C_ARADDR        : in    std_logic_vector(C_ADDR_WIDTH  -1 downto 0);
-        C_ARLEN         : in    std_logic_vector(7 downto 0);
-        C_ARSIZE        : in    std_logic_vector(2 downto 0);
-        C_ARBURST       : in    std_logic_vector(1 downto 0);
-        C_ARVALID       : in    std_logic;
-        C_ARREADY       : out   std_logic;
+        CSR_ARID        : in    std_logic_vector(CSR_ID_WIDTH    -1 downto 0);
+        CSR_ARADDR      : in    std_logic_vector(CSR_ADDR_WIDTH  -1 downto 0);
+        CSR_ARLEN       : in    std_logic_vector(7 downto 0);
+        CSR_ARSIZE      : in    std_logic_vector(2 downto 0);
+        CSR_ARBURST     : in    std_logic_vector(1 downto 0);
+        CSR_ARVALID     : in    std_logic;
+        CSR_ARREADY     : out   std_logic;
     -------------------------------------------------------------------------------
     -- Control Status Register I/F AXI4 Read Data Channel Signals.
     -------------------------------------------------------------------------------
-        C_RID           : out   std_logic_vector(C_ID_WIDTH    -1 downto 0);
-        C_RDATA         : out   std_logic_vector(C_DATA_WIDTH  -1 downto 0);
-        C_RRESP         : out   std_logic_vector(1 downto 0);
-        C_RLAST         : out   std_logic;
-        C_RVALID        : out   std_logic;
-        C_RREADY        : in    std_logic;
+        CSR_RID         : out   std_logic_vector(CSR_ID_WIDTH    -1 downto 0);
+        CSR_RDATA       : out   std_logic_vector(CSR_DATA_WIDTH  -1 downto 0);
+        CSR_RRESP       : out   std_logic_vector(1 downto 0);
+        CSR_RLAST       : out   std_logic;
+        CSR_RVALID      : out   std_logic;
+        CSR_RREADY      : in    std_logic;
     -------------------------------------------------------------------------------
     -- Control Status Register I/F AXI4 Write Address Channel Signals.
     -------------------------------------------------------------------------------
-        C_AWID          : in    std_logic_vector(C_ID_WIDTH    -1 downto 0);
-        C_AWADDR        : in    std_logic_vector(C_ADDR_WIDTH  -1 downto 0);
-        C_AWLEN         : in    std_logic_vector(7 downto 0);
-        C_AWSIZE        : in    std_logic_vector(2 downto 0);
-        C_AWBURST       : in    std_logic_vector(1 downto 0);
-        C_AWVALID       : in    std_logic;
-        C_AWREADY       : out   std_logic;
+        CSR_AWID        : in    std_logic_vector(CSR_ID_WIDTH    -1 downto 0);
+        CSR_AWADDR      : in    std_logic_vector(CSR_ADDR_WIDTH  -1 downto 0);
+        CSR_AWLEN       : in    std_logic_vector(7 downto 0);
+        CSR_AWSIZE      : in    std_logic_vector(2 downto 0);
+        CSR_AWBURST     : in    std_logic_vector(1 downto 0);
+        CSR_AWVALID     : in    std_logic;
+        CSR_AWREADY     : out   std_logic;
     -------------------------------------------------------------------------------
     -- Control Status Register I/F AXI4 Write Data Channel Signals.
     -------------------------------------------------------------------------------
-        C_WDATA         : in    std_logic_vector(C_DATA_WIDTH  -1 downto 0);
-        C_WSTRB         : in    std_logic_vector(C_DATA_WIDTH/8-1 downto 0);
-        C_WLAST         : in    std_logic;
-        C_WVALID        : in    std_logic;
-        C_WREADY        : out   std_logic;
+        CSR_WDATA       : in    std_logic_vector(CSR_DATA_WIDTH  -1 downto 0);
+        CSR_WSTRB       : in    std_logic_vector(CSR_DATA_WIDTH/8-1 downto 0);
+        CSR_WLAST       : in    std_logic;
+        CSR_WVALID      : in    std_logic;
+        CSR_WREADY      : out   std_logic;
     -------------------------------------------------------------------------------
     -- Control Status Register I/F AXI4 Write Response Channel Signals.
     -------------------------------------------------------------------------------
-        C_BID           : out   std_logic_vector(C_ID_WIDTH    -1 downto 0);
-        C_BRESP         : out   std_logic_vector(1 downto 0);
-        C_BVALID        : out   std_logic;
-        C_BREADY        : in    std_logic;
+        CSR_BID         : out   std_logic_vector(CSR_ID_WIDTH    -1 downto 0);
+        CSR_BRESP       : out   std_logic_vector(1 downto 0);
+        CSR_BVALID      : out   std_logic;
+        CSR_BREADY      : in    std_logic;
     -------------------------------------------------------------------------------
     -- Interrupt
     -------------------------------------------------------------------------------
-        C_IRQ           : out   std_logic;
+        CSR_IRQ         : out   std_logic;
     -------------------------------------------------------------------------------
     -- 入力側の信号
     -------------------------------------------------------------------------------
-        I_CLK           : --! @brief INTAKE CLOCK :
+        RXD_CLK         : --! @brief RECEIVE DATA CLOCK :
                           --! 入力側のクロック信号.
                           in  std_logic;
-        I_DATA          : --! @brief INTAKE DATA :
+        RXD_TDATA       : --! @brief RECEIVE DATA DATA :
                           --! 入力側データ
-                          in  std_logic_vector(8*I_BYTES-1 downto 0);
-        I_STRB          : --! @brief INTAKE STROBE :
+                          in  std_logic_vector(8*RXD_BYTES-1 downto 0);
+        RXD_TKEEP       : --! @brief RECEIVE DATA STROBE :
                           --! 入力側データ
-                          in  std_logic_vector(  I_BYTES-1 downto 0);
-        I_LAST          : --! @brief INTAKE LAST :
+                          in  std_logic_vector(  RXD_BYTES-1 downto 0);
+        RXD_TLAST       : --! @brief RECEIVE DATA LAST :
                           --! 入力側データ
                           in  std_logic;
-        I_VALID         : --! @brief INTAKE ENABLE :
+        RXD_TVALID      : --! @brief RECEIVE DATA ENABLE :
                           --! 入力有効信号.
                           in  std_logic;
-        I_READY         : --! @brief INTAKE READY :
+        RXD_TREADY      : --! @brief RECEIVE DATA READY :
                           --! 入力許可信号.
                           out std_logic;
     -------------------------------------------------------------------------------
     -- 出力側の信号
     -------------------------------------------------------------------------------
-        O_CLK           : --! @brief OUTLET CLOCK :
+        TXD_CLK         : --! @brief TRANSMIT DATA CLOCK :
                           --! 出力側のクロック信号.
                           in  std_logic;
-        O_DATA          : --! @brief OUTLET DATA :
+        TXD_TDATA       : --! @brief TRANSMIT DATA DATA :
                           --! 出力側データ
-                          out std_logic_vector(8*O_BYTES-1 downto 0);
-        O_STRB          : --! @brief OUTLET STROBE :
+                          out std_logic_vector(8*TXD_BYTES-1 downto 0);
+        TXD_TKEEP       : --! @brief TRANSMIT DATA STROBE :
                           --! 出力側データ
-                          out std_logic_vector(  O_BYTES-1 downto 0);
-        O_LAST          : --! @brief OUTLET LAST :
+                          out std_logic_vector(  TXD_BYTES-1 downto 0);
+        TXD_TLAST       : --! @brief TRANSMIT DATA LAST :
                           --! 出力側データ
                           out std_logic;
-        O_VALID         : --! @brief OUTLET ENABLE :
+        TXD_TVALID      : --! @brief TRANSMIT DATA ENABLE :
                           --! 出力有効信号.
                           out std_logic;
-        O_READY         : --! @brief OUTLET READY :
+        TXD_TREADY      : --! @brief TRANSMIT DATA READY :
                           --! 出力許可信号.
                           in  std_logic
     );
@@ -172,111 +172,115 @@ architecture RTL of PTTY_AXI4 is
     signal   regs_write         :  std_logic;
     signal   regs_ack           :  std_logic;
     signal   regs_err           :  std_logic;
-    signal   regs_addr          :  std_logic_vector(C_ADDR_WIDTH  -1 downto 0);
-    signal   regs_ben           :  std_logic_vector(C_DATA_WIDTH/8-1 downto 0);
-    signal   regs_wdata         :  std_logic_vector(C_DATA_WIDTH  -1 downto 0);
-    signal   regs_rdata         :  std_logic_vector(C_DATA_WIDTH  -1 downto 0);
+    signal   regs_addr          :  std_logic_vector(CSR_ADDR_WIDTH  -1 downto 0);
+    signal   regs_ben           :  std_logic_vector(CSR_DATA_WIDTH/8-1 downto 0);
+    signal   regs_wdata         :  std_logic_vector(CSR_DATA_WIDTH  -1 downto 0);
+    signal   regs_rdata         :  std_logic_vector(CSR_DATA_WIDTH  -1 downto 0);
     signal   regs_err_req       :  std_logic;
     signal   regs_err_ack       :  std_logic;
     -------------------------------------------------------------------------------
     -- PTTY_SEND アクセス用信号群.
     -------------------------------------------------------------------------------
-    signal   send_reg_req       :  std_logic;
-    signal   send_buf_req       :  std_logic;
-    signal   send_ack           :  std_logic;
-    signal   send_err           :  std_logic;
-    signal   send_rdata         :  std_logic_vector(C_DATA_WIDTH  -1 downto 0);
-    signal   send_irq           :  std_logic;
+    signal   tx_regs_req        :  std_logic;
+    signal   txd_buf_req        :  std_logic;
+    signal   tx_ack             :  std_logic;
+    signal   tx_err             :  std_logic;
+    signal   tx_rdata           :  std_logic_vector(CSR_DATA_WIDTH  -1 downto 0);
+    signal   tx_irq             :  std_logic;
     -------------------------------------------------------------------------------
     -- PTTY_RECV アクセス用信号群.
     -------------------------------------------------------------------------------
-    signal   recv_reg_req       :  std_logic;
-    signal   recv_buf_req       :  std_logic;
-    signal   recv_ack           :  std_logic;
-    signal   recv_err           :  std_logic;
-    signal   recv_rdata         :  std_logic_vector(C_DATA_WIDTH  -1 downto 0);
-    signal   recv_irq           :  std_logic;
+    signal   rx_regs_req       :  std_logic;
+    signal   rxd_buf_req       :  std_logic;
+    signal   rx_ack            :  std_logic;
+    signal   rx_err            :  std_logic;
+    signal   rx_rdata          :  std_logic_vector(CSR_DATA_WIDTH  -1 downto 0);
+    signal   rx_irq            :  std_logic;
     -------------------------------------------------------------------------------
     -- レジスタマップ
     -------------------------------------------------------------------------------
-    constant SEND_REG_AREA_LO   :  integer := 16#0010#;
-    constant SEND_REG_AREA_HI   :  integer := 16#0017#;
-    constant RECV_REG_AREA_LO   :  integer := 16#0020#;
-    constant RECV_REG_AREA_HI   :  integer := 16#0027#;
-    constant SEND_BUF_AREA_LO   :  integer := 16#1000#;
-    constant SEND_BUF_AREA_HI   :  integer := 16#1FFF#;
-    constant RECV_BUF_AREA_LO   :  integer := 16#2000#;
-    constant RECV_BUF_AREA_HI   :  integer := 16#2FFF#;
+    constant TX_REGS_AREA_LO   :  integer := 16#0010#;
+    constant TX_REGS_AREA_HI   :  integer := 16#001F#;
+    constant RX_REGS_AREA_LO   :  integer := 16#0020#;
+    constant RX_REGS_AREA_HI   :  integer := 16#002F#;
+    constant TXD_BUF_AREA_LO   :  integer := 16#0800#;
+    constant TXD_BUF_AREA_HI   :  integer := 16#0BFF#;
+    constant RXD_BUF_AREA_LO   :  integer := 16#0C00#;
+    constant RXD_BUF_AREA_HI   :  integer := 16#0FFF#;
     -------------------------------------------------------------------------------
-    -- PTTY_SEND 
+    -- PTTY_TX
     -------------------------------------------------------------------------------
-    component  PTTY_SEND
+    component  PTTY_TX
         generic (
-            SBUF_DEPTH      : integer range 4 to    9 :=  7;
-            C_ADDR_WIDTH    : integer range 1 to   64 := 32;
-            C_DATA_WIDTH    : integer range 8 to 1024 := 32;
-            O_BYTES         : integer := 1;
-            O_CLK_RATE      : integer := 1;
-            C_CLK_RATE      : integer := 1
+            PORT_NUM        : integer range 0 to   99 :=  0;
+            TXD_BUF_DEPTH   : integer range 4 to   15 :=  7;
+            TXD_BUF_BASE    : integer := 0;
+            CSR_ADDR_WIDTH  : integer range 1 to   64 := 32;
+            CSR_DATA_WIDTH  : integer range 8 to 1024 := 32;
+            TXD_BYTES       : integer := 1;
+            TXD_CLK_RATE    : integer := 1;
+            CSR_CLK_RATE    : integer := 1
         );
         port (
             RST             : in  std_logic;
             CLR             : in  std_logic;
-            C_CLK           : in  std_logic;
-            C_CKE           : in  std_logic;
-            C_ADDR          : in  std_logic_vector(C_ADDR_WIDTH  -1 downto 0);
-            C_BEN           : in  std_logic_vector(C_DATA_WIDTH/8-1 downto 0);
-            C_WDATA         : in  std_logic_vector(C_DATA_WIDTH  -1 downto 0);
-            C_RDATA         : out std_logic_vector(C_DATA_WIDTH  -1 downto 0);
-            C_REG_REQ       : in  std_logic;
-            C_BUF_REQ       : in  std_logic;
-            C_WRITE         : in  std_logic;
-            C_ACK           : out std_logic;
-            C_ERR           : out std_logic;
-            C_IRQ           : out std_logic;
-            O_CLK           : in  std_logic;
-            O_CKE           : in  std_logic;
-            O_DATA          : out std_logic_vector(8*O_BYTES-1 downto 0);
-            O_STRB          : out std_logic_vector(  O_BYTES-1 downto 0);
-            O_LAST          : out std_logic;
-            O_VALID         : out std_logic;
-            O_READY         : in  std_logic
+            CSR_CLK         : in  std_logic;
+            CSR_CKE         : in  std_logic;
+            CSR_ADDR        : in  std_logic_vector(CSR_ADDR_WIDTH  -1 downto 0);
+            CSR_BEN         : in  std_logic_vector(CSR_DATA_WIDTH/8-1 downto 0);
+            CSR_WDATA       : in  std_logic_vector(CSR_DATA_WIDTH  -1 downto 0);
+            CSR_RDATA       : out std_logic_vector(CSR_DATA_WIDTH  -1 downto 0);
+            CSR_REG_REQ     : in  std_logic;
+            CSR_BUF_REQ     : in  std_logic;
+            CSR_WRITE       : in  std_logic;
+            CSR_ACK         : out std_logic;
+            CSR_ERR         : out std_logic;
+            CSR_IRQ         : out std_logic;
+            TXD_CLK         : in  std_logic;
+            TXD_CKE         : in  std_logic;
+            TXD_DATA        : out std_logic_vector(8*TXD_BYTES-1 downto 0);
+            TXD_STRB        : out std_logic_vector(  TXD_BYTES-1 downto 0);
+            TXD_LAST        : out std_logic;
+            TXD_VALID       : out std_logic;
+            TXD_READY       : in  std_logic
         );
     end component;
     -------------------------------------------------------------------------------
-    -- PTTY_RECV
+    -- PTTY_RX
     -------------------------------------------------------------------------------
-    component  PTTY_RECV
+    component  PTTY_RX
         generic (
-            RBUF_DEPTH      : integer range 4 to    9 :=  7;
-            C_ADDR_WIDTH    : integer range 1 to   64 := 32;
-            C_DATA_WIDTH    : integer range 8 to 1024 := 32;
-            I_BYTES         : integer := 1;
-            I_CLK_RATE      : integer := 1;
-            C_CLK_RATE      : integer := 1
+            PORT_NUM        : integer range 0 to   99 :=  0;
+            RXD_BUF_DEPTH   : integer range 4 to   15 :=  7;
+            RXD_BUF_BASE    : integer := 0;
+            CSR_ADDR_WIDTH  : integer range 1 to   64 := 32;
+            CSR_DATA_WIDTH  : integer range 8 to 1024 := 32;
+            RXD_BYTES       : integer := 1;
+            RXD_CLK_RATE    : integer := 1;
+            CSR_CLK_RATE    : integer := 1
         );
         port (
             RST             : in  std_logic;
             CLR             : in  std_logic;
-            C_CLK           : in  std_logic;
-            C_CKE           : in  std_logic;
-            C_ADDR          : in  std_logic_vector(C_ADDR_WIDTH  -1 downto 0);
-            C_BEN           : in  std_logic_vector(C_DATA_WIDTH/8-1 downto 0);
-            C_WDATA         : in  std_logic_vector(C_DATA_WIDTH  -1 downto 0);
-            C_RDATA         : out std_logic_vector(C_DATA_WIDTH  -1 downto 0);
-            C_REG_REQ       : in  std_logic;
-            C_BUF_REQ       : in  std_logic;
-            C_WRITE         : in  std_logic;
-            C_ACK           : out std_logic;
-            C_ERR           : out std_logic;
-            C_IRQ           : out std_logic;
-            I_CLK           : in  std_logic;
-            I_CKE           : in  std_logic;
-            I_DATA          : in  std_logic_vector(8*I_BYTES-1 downto 0);
-            I_STRB          : in  std_logic_vector(  I_BYTES-1 downto 0);
-            I_LAST          : in  std_logic;
-            I_VALID         : in  std_logic;
-            I_READY         : out std_logic
+            CSR_CLK         : in  std_logic;
+            CSR_CKE         : in  std_logic;
+            CSR_ADDR        : in  std_logic_vector(CSR_ADDR_WIDTH  -1 downto 0);
+            CSR_BEN         : in  std_logic_vector(CSR_DATA_WIDTH/8-1 downto 0);
+            CSR_WDATA       : in  std_logic_vector(CSR_DATA_WIDTH  -1 downto 0);
+            CSR_RDATA       : out std_logic_vector(CSR_DATA_WIDTH  -1 downto 0);
+            CSR_REG_REQ     : in  std_logic;
+            CSR_BUF_REQ     : in  std_logic;
+            CSR_WRITE       : in  std_logic;
+            CSR_ACK         : out std_logic;
+            CSR_ERR         : out std_logic;
+            CSR_IRQ         : out std_logic;
+            RXD_CLK         : in  std_logic;
+            RXD_CKE         : in  std_logic;
+            RXD_DATA        : in  std_logic_vector(8*RXD_BYTES-1 downto 0);
+            RXD_STRB        : in  std_logic_vector(  RXD_BYTES-1 downto 0);
+            RXD_LAST        : in  std_logic;
+            RXD_VALID       : in  std_logic;
+            RXD_READY       : out std_logic
         );
     end component;
 begin
@@ -289,63 +293,63 @@ begin
     -------------------------------------------------------------------------------
     AXI4: AXI4_REGISTER_INTERFACE                  --
         generic map (                              -- 
-            AXI4_ADDR_WIDTH => C_ADDR_WIDTH      , --
-            AXI4_DATA_WIDTH => C_DATA_WIDTH      , --
-            AXI4_ID_WIDTH   => C_ID_WIDTH        , --
-            REGS_ADDR_WIDTH => C_ADDR_WIDTH      , --
-            REGS_DATA_WIDTH => C_DATA_WIDTH        --
+            AXI4_ADDR_WIDTH => CSR_ADDR_WIDTH    , --
+            AXI4_DATA_WIDTH => CSR_DATA_WIDTH    , --
+            AXI4_ID_WIDTH   => CSR_ID_WIDTH      , --
+            REGS_ADDR_WIDTH => CSR_ADDR_WIDTH    , --
+            REGS_DATA_WIDTH => CSR_DATA_WIDTH      --
         )                                          -- 
         port map (                                 -- 
         -----------------------------------------------------------------------
         -- Clock and Reset Signals.
         -----------------------------------------------------------------------
-            CLK             => C_CLK             , -- In  :
+            CLK             => CSR_CLK           , -- In  :
             RST             => RST               , -- In  :
             CLR             => CLR               , -- In  :
         -----------------------------------------------------------------------
         -- AXI4 Read Address Channel Signals.
         -----------------------------------------------------------------------
-            ARID            => C_ARID            , -- In  :
-            ARADDR          => C_ARADDR          , -- In  :
-            ARLEN           => C_ARLEN           , -- In  :
-            ARSIZE          => C_ARSIZE          , -- In  :
-            ARBURST         => C_ARBURST         , -- In  :
-            ARVALID         => C_ARVALID         , -- In  :
-            ARREADY         => C_ARREADY         , -- Out :
+            ARID            => CSR_ARID          , -- In  :
+            ARADDR          => CSR_ARADDR        , -- In  :
+            ARLEN           => CSR_ARLEN         , -- In  :
+            ARSIZE          => CSR_ARSIZE        , -- In  :
+            ARBURST         => CSR_ARBURST       , -- In  :
+            ARVALID         => CSR_ARVALID       , -- In  :
+            ARREADY         => CSR_ARREADY       , -- Out :
         -----------------------------------------------------------------------
         -- AXI4 Read Data Channel Signals.
         -----------------------------------------------------------------------
-            RID             => C_RID             , -- Out :
-            RDATA           => C_RDATA           , -- Out :
-            RRESP           => C_RRESP           , -- Out :
-            RLAST           => C_RLAST           , -- Out :
-            RVALID          => C_RVALID          , -- Out :
-            RREADY          => C_RREADY          , -- In  :
+            RID             => CSR_RID           , -- Out :
+            RDATA           => CSR_RDATA         , -- Out :
+            RRESP           => CSR_RRESP         , -- Out :
+            RLAST           => CSR_RLAST         , -- Out :
+            RVALID          => CSR_RVALID        , -- Out :
+            RREADY          => CSR_RREADY        , -- In  :
         -----------------------------------------------------------------------
         -- AXI4 Write Address Channel Signals.
         -----------------------------------------------------------------------
-            AWID            => C_AWID            , -- In  :
-            AWADDR          => C_AWADDR          , -- In  :
-            AWLEN           => C_AWLEN           , -- In  :
-            AWSIZE          => C_AWSIZE          , -- In  :
-            AWBURST         => C_AWBURST         , -- In  :
-            AWVALID         => C_AWVALID         , -- In  :
-            AWREADY         => C_AWREADY         , -- Out :
+            AWID            => CSR_AWID          , -- In  :
+            AWADDR          => CSR_AWADDR        , -- In  :
+            AWLEN           => CSR_AWLEN         , -- In  :
+            AWSIZE          => CSR_AWSIZE        , -- In  :
+            AWBURST         => CSR_AWBURST       , -- In  :
+            AWVALID         => CSR_AWVALID       , -- In  :
+            AWREADY         => CSR_AWREADY       , -- Out :
         -----------------------------------------------------------------------
         -- AXI4 Write Data Channel Signals.
         -----------------------------------------------------------------------
-            WDATA           => C_WDATA           , -- In  :
-            WSTRB           => C_WSTRB           , -- In  :
-            WLAST           => C_WLAST           , -- In  :
-            WVALID          => C_WVALID          , -- In  :
-            WREADY          => C_WREADY          , -- Out :
+            WDATA           => CSR_WDATA         , -- In  :
+            WSTRB           => CSR_WSTRB         , -- In  :
+            WLAST           => CSR_WLAST         , -- In  :
+            WVALID          => CSR_WVALID        , -- In  :
+            WREADY          => CSR_WREADY        , -- Out :
         -----------------------------------------------------------------------
         -- AXI4 Write Response Channel Signals.
         -----------------------------------------------------------------------
-            BID             => C_BID             , -- Out :
-            BRESP           => C_BRESP           , -- Out :
-            BVALID          => C_BVALID          , -- Out :
-            BREADY          => C_BREADY          , -- In  :
+            BID             => CSR_BID           , -- Out :
+            BRESP           => CSR_BRESP         , -- Out :
+            BVALID          => CSR_BVALID        , -- Out :
+            BREADY          => CSR_BREADY        , -- In  :
         -----------------------------------------------------------------------
         -- Register Interface.
         -----------------------------------------------------------------------
@@ -362,130 +366,134 @@ begin
     -- 
     -------------------------------------------------------------------------------
     process (regs_req, regs_addr)
-        variable u_addr       : unsigned(C_ADDR_WIDTH-1 downto 0);
-        variable send_reg_sel : boolean;
-        variable send_buf_sel : boolean;
-        variable recv_reg_sel : boolean;
-        variable recv_buf_sel : boolean;
+        variable u_addr       : unsigned(CSR_ADDR_WIDTH-1 downto 0);
+        variable tx_regs_sel : boolean;
+        variable txd_buf_sel : boolean;
+        variable rx_regs_sel : boolean;
+        variable rxd_buf_sel : boolean;
     begin
         if (regs_req = '1') then
             u_addr       := to_01(unsigned(regs_addr));
-            send_reg_sel := (SEND_REG_AREA_LO <= u_addr and u_addr <= SEND_REG_AREA_HI);
-            send_buf_sel := (SEND_BUF_AREA_LO <= u_addr and u_addr <= SEND_BUF_AREA_HI);
-            recv_reg_sel := (RECV_REG_AREA_LO <= u_addr and u_addr <= RECV_REG_AREA_HI);
-            recv_buf_sel := (RECV_BUF_AREA_LO <= u_addr and u_addr <= RECV_BUF_AREA_HI);
-            if (send_reg_sel) then
-                send_reg_req <= '1';
+            tx_regs_sel := (TX_REGS_AREA_LO <= u_addr and u_addr <= TX_REGS_AREA_HI);
+            txd_buf_sel := (TXD_BUF_AREA_LO <= u_addr and u_addr <= TXD_BUF_AREA_HI);
+            rx_regs_sel := (RX_REGS_AREA_LO <= u_addr and u_addr <= RX_REGS_AREA_HI);
+            rxd_buf_sel := (RXD_BUF_AREA_LO <= u_addr and u_addr <= RXD_BUF_AREA_HI);
+            if (tx_regs_sel) then
+                tx_regs_req <= '1';
             else
-                send_reg_req <= '0';
+                tx_regs_req <= '0';
             end if;
-            if (send_buf_sel) then
-                send_buf_req <= '1';
+            if (txd_buf_sel) then
+                txd_buf_req <= '1';
             else
-                send_buf_req <= '0';
+                txd_buf_req <= '0';
             end if;
-            if (recv_reg_sel) then
-                recv_reg_req <= '1';
+            if (rx_regs_sel) then
+                rx_regs_req <= '1';
             else
-                recv_reg_req <= '0';
+                rx_regs_req <= '0';
             end if;
-            if (recv_buf_sel) then
-                recv_buf_req <= '1';
+            if (rxd_buf_sel) then
+                rxd_buf_req <= '1';
             else
-                recv_buf_req <= '0';
+                rxd_buf_req <= '0';
             end if;
-            if (send_reg_sel = FALSE) and
-               (send_buf_sel = FALSE) and
-               (recv_reg_sel = FALSE) and
-               (recv_buf_sel = FALSE) then
+            if (tx_regs_sel = FALSE) and
+               (txd_buf_sel = FALSE) and
+               (rx_regs_sel = FALSE) and
+               (rxd_buf_sel = FALSE) then
                 regs_err_req <= '1';
             else
                 regs_err_req <= '0';
             end if;
         else
-                send_reg_req <= '0';
-                send_buf_req <= '0';
-                recv_reg_req <= '0';
-                recv_buf_req <= '0';
+                tx_regs_req <= '0';
+                txd_buf_req <= '0';
+                rx_regs_req <= '0';
+                rxd_buf_req <= '0';
                 regs_err_req <= '0';
         end if;
     end process;
     regs_err_ack <= regs_err_req;
-    regs_ack     <= send_ack   or recv_ack;
-    regs_err     <= send_err   or recv_err;
-    regs_rdata   <= send_rdata or recv_rdata;
+    regs_ack     <= tx_ack   or rx_ack or regs_err_ack;
+    regs_err     <= tx_err   or rx_err;
+    regs_rdata   <= tx_rdata or rx_rdata;
     -------------------------------------------------------------------------------
     -- 
     -------------------------------------------------------------------------------
-    SEND:  PTTY_SEND                               -- 
-        generic map (                              -- 
-            SBUF_DEPTH      => SBUF_DEPTH        , -- 
-            C_ADDR_WIDTH    => C_ADDR_WIDTH      , -- 
-            C_DATA_WIDTH    => C_DATA_WIDTH      , -- 
-            O_BYTES         => O_BYTES           , -- 
-            O_CLK_RATE      => 0                 , -- 
-            C_CLK_RATE      => 0                   -- 
+    TX:  PTTY_TX                                   -- 
+        generic map (                              --
+            PORT_NUM        => 0                 , -- 
+            TXD_BUF_DEPTH   => TXD_BUF_DEPTH     , --
+            TXD_BUF_BASE    => TXD_BUF_AREA_LO   , --
+            CSR_ADDR_WIDTH  => CSR_ADDR_WIDTH    , -- 
+            CSR_DATA_WIDTH  => CSR_DATA_WIDTH    , -- 
+            TXD_BYTES       => TXD_BYTES         , -- 
+            TXD_CLK_RATE    => 0                 , -- 
+            CSR_CLK_RATE    => 0                   -- 
         )                                          -- 
         port map (                                 -- 
             RST             => RST               , -- In  :
             CLR             => CLR               , -- In  :
-            C_CLK           => C_CLK             , -- In  :
-            C_CKE           => '1'               , -- In  :
-            C_ADDR          => regs_addr         , -- In  :
-            C_BEN           => regs_ben          , -- In  :
-            C_WDATA         => regs_wdata        , -- In  :
-            C_RDATA         => send_rdata        , -- Out :
-            C_REG_REQ       => send_reg_req      , -- In  :
-            C_BUF_REQ       => send_buf_req      , -- In  :
-            C_WRITE         => regs_write        , -- In  :
-            C_ACK           => send_ack          , -- Out :
-            C_ERR           => send_err          , -- Out :
-            C_IRQ           => send_irq          , -- Out :
-            O_CLK           => O_CLK             , -- In  :
-            O_CKE           => '1'               , -- In  :
-            O_DATA          => O_DATA            , -- Out :
-            O_STRB          => O_STRB            , -- Out :
-            O_LAST          => O_LAST            , -- Out :
-            O_VALID         => O_VALID           , -- Out :
-            O_READY         => O_READY             -- In  :
+            CSR_CLK         => CSR_CLK           , -- In  :
+            CSR_CKE         => '1'               , -- In  :
+            CSR_ADDR        => regs_addr         , -- In  :
+            CSR_BEN         => regs_ben          , -- In  :
+            CSR_WDATA       => regs_wdata        , -- In  :
+            CSR_RDATA       => tx_rdata          , -- Out :
+            CSR_REG_REQ     => tx_regs_req       , -- In  :
+            CSR_BUF_REQ     => txd_buf_req       , -- In  :
+            CSR_WRITE       => regs_write        , -- In  :
+            CSR_ACK         => tx_ack            , -- Out :
+            CSR_ERR         => tx_err            , -- Out :
+            CSR_IRQ         => tx_irq            , -- Out :
+            TXD_CLK         => TXD_CLK           , -- In  :
+            TXD_CKE         => '1'               , -- In  :
+            TXD_DATA        => TXD_TDATA         , -- Out :
+            TXD_STRB        => TXD_TKEEP         , -- Out :
+            TXD_LAST        => TXD_TLAST         , -- Out :
+            TXD_VALID       => TXD_TVALID        , -- Out :
+            TXD_READY       => TXD_TREADY          -- In  :
         );                                         -- 
     -------------------------------------------------------------------------------
     -- 
     -------------------------------------------------------------------------------
-    RECV: PTTY_RECV                                -- 
+    RX: PTTY_RX                                    -- 
         generic map (                              -- 
-            RBUF_DEPTH      => RBUF_DEPTH        , --
-            C_ADDR_WIDTH    => C_ADDR_WIDTH      , --
-            C_DATA_WIDTH    => C_DATA_WIDTH      , --
-            I_BYTES         => I_BYTES           , --
-            I_CLK_RATE      => 0                 , --
-            C_CLK_RATE      => 0                   --
+            PORT_NUM        => 0                 , -- 
+            RXD_BUF_DEPTH   => RXD_BUF_DEPTH     , --
+            RXD_BUF_BASE    => RXD_BUF_AREA_LO   , --
+            CSR_ADDR_WIDTH  => CSR_ADDR_WIDTH    , --
+            CSR_DATA_WIDTH  => CSR_DATA_WIDTH    , --
+            RXD_BYTES       => RXD_BYTES         , --
+            RXD_CLK_RATE    => 0                 , --
+            CSR_CLK_RATE    => 0                   --
         )                                          -- 
         port map (                                 -- 
             RST             => RST               , -- In  :
             CLR             => CLR               , -- In  :
-            C_CLK           => C_CLK             , -- In  :
-            C_CKE           => '1'               , -- In  :
-            C_ADDR          => regs_addr         , -- In  :
-            C_BEN           => regs_ben          , -- In  :
-            C_WDATA         => regs_wdata        , -- In  :
-            C_RDATA         => recv_rdata        , -- Out :
-            C_REG_REQ       => recv_reg_req      , -- In  :
-            C_BUF_REQ       => recv_buf_req      , -- In  :
-            C_WRITE         => regs_write        , -- In  :
-            C_ACK           => recv_ack          , -- Out :
-            C_ERR           => recv_err          , -- Out :
-            C_IRQ           => recv_irq          , -- Out :
-            I_CLK           => I_CLK             , -- In  :
-            I_CKE           => '1'               , -- In  :
-            I_DATA          => I_DATA            , -- In  :
-            I_STRB          => I_STRB            , -- In  :
-            I_LAST          => I_LAST            , -- In  :
-            I_VALID         => I_VALID           , -- In  :
-            I_READY         => I_READY             -- Out :
+            CSR_CLK         => CSR_CLK           , -- In  :
+            CSR_CKE         => '1'               , -- In  :
+            CSR_ADDR        => regs_addr         , -- In  :
+            CSR_BEN         => regs_ben          , -- In  :
+            CSR_WDATA       => regs_wdata        , -- In  :
+            CSR_RDATA       => rx_rdata          , -- Out :
+            CSR_REG_REQ     => rx_regs_req       , -- In  :
+            CSR_BUF_REQ     => rxd_buf_req       , -- In  :
+            CSR_WRITE       => regs_write        , -- In  :
+            CSR_ACK         => rx_ack            , -- Out :
+            CSR_ERR         => rx_err            , -- Out :
+            CSR_IRQ         => rx_irq            , -- Out :
+            RXD_CLK         => RXD_CLK           , -- In  :
+            RXD_CKE         => '1'               , -- In  :
+            RXD_DATA        => RXD_TDATA         , -- In  :
+            RXD_STRB        => RXD_TKEEP         , -- In  :
+            RXD_LAST        => RXD_TLAST         , -- In  :
+            RXD_VALID       => RXD_TVALID        , -- In  :
+            RXD_READY       => RXD_TREADY          -- Out :
         );                                         --
     -------------------------------------------------------------------------------
     --
     -------------------------------------------------------------------------------
-    C_IRQ <= '1' when (send_irq = '1' or recv_irq = '1') else '0';
+    CSR_IRQ <= '1' when (tx_irq = '1' or rx_irq = '1') else '0';
 end RTL;

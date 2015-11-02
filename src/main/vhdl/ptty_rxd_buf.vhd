@@ -1,8 +1,8 @@
 -----------------------------------------------------------------------------------
---!     @file    recv_buf.vhd
---!     @brief   Receiver Buffer for PTTY_AXI4
---!     @version 0.1.0
---!     @date    2015/8/20
+--!     @file    ptty_rxd_buf.vhd
+--!     @brief   Receive Data Buffer for PTTY_AXI4
+--!     @version 0.2.0
+--!     @date    2015/11/2
 --!     @author  Ichiro Kawazome <ichiro_k@ca2.so-net.ne.jp>
 -----------------------------------------------------------------------------------
 --
@@ -39,7 +39,7 @@ use     ieee.std_logic_1164.all;
 -----------------------------------------------------------------------------------
 --! @brief 受信バッファ
 -----------------------------------------------------------------------------------
-entity  RECV_BUF is
+entity  PTTY_RXD_BUF is
     generic (
         BUF_DEPTH   : --! @brief BUFFER DEPTH :
                       --! バッファの容量(バイト数)を２のべき乗値で指定する.
@@ -49,7 +49,8 @@ entity  RECV_BUF is
                       integer := 2;
         I_BYTES     : --! @brief INTAKE DATA WIDTH :
                       --! 入力側のデータ幅(バイト数)を指定する.
-                      integer := 1;
+                      --! 現時点では入力側のデータ幅は１バイトの場合のみ実装している.
+                      integer range 1 to 1 := 1;
         I_CLK_RATE  : --! @brief INTAKE CLOCK RATE :
                       --! S_CLK_RATEとペアで入力側のクロック(I_CLK)とバッファアクセ
                       --! ス側のクロック(S_CLK)との関係を指定する.
@@ -80,7 +81,7 @@ entity  RECV_BUF is
                       in  std_logic_vector(8*I_BYTES-1 downto 0);
         I_STRB      : --! @brief INTAKE STROBE :
                       --! 入力側データ
-                      in  std_logic_vector(  I_BYTES-1 downto 0);
+                      in  std_logic_vector(  I_BYTES-1 downto 0) := (others => '1');
         I_LAST      : --! @brief INTAKE LAST :
                       --! 入力側データ
                       in  std_logic;
@@ -126,14 +127,26 @@ entity  RECV_BUF is
                       --! バッファから読み出したデータのバイト数(PULL_COUNT)を
                       --! 入力してBUF_COUNTおよびBUF_CADDRを更新する信号.
                       in  std_logic;
+        ABORT_START : --! @brief ABORT START :
+                      --! 受信中止開始.
+                      in  std_logic;
+        ABORT_BUSY  : --! @brief ABORT BUSY :
+                      --! 受信中止中であることを示す信号.
+                      out std_logic;
+        PAUSE_DATA  : --! @brief PAUSE LOAD :
+                      --! 受信中断入力信号.
+                      in  std_logic;
+        PAUSE_LOAD  : --! @brief PAUSE LOAD :
+                      --! 受信中断ロード信号.
+                      in  std_logic;
         RESET_DATA  : --! @brief RESET DATA :
-                      --! リセットデータ入力信号.
+                      --! リセット入力信号.
                       in  std_logic;
         RESET_LOAD  : --! @brief RESET LOAD :
-                      --! リセットデータロード信号.
+                      --! リセットロード信号.
                       in  std_logic
     );
-end RECV_BUF;
+end PTTY_RXD_BUF;
 -----------------------------------------------------------------------------------
 -- 
 -----------------------------------------------------------------------------------
@@ -142,9 +155,10 @@ use     ieee.std_logic_1164.all;
 use     ieee.numeric_std.all;
 library PIPEWORK;
 use     PIPEWORK.COMPONENTS.SDPRAM;
+use     PIPEWORK.COMPONENTS.REDUCER;
 use     PIPEWORK.COMPONENTS.SYNCRONIZER;
 use     PIPEWORK.COMPONENTS.SYNCRONIZER_INPUT_PENDING_REGISTER;
-architecture RTL of RECV_BUF is
+architecture RTL of PTTY_RXD_BUF is
     -------------------------------------------------------------------------------
     -- バッファ書き込み制御信号
     -------------------------------------------------------------------------------
@@ -162,12 +176,19 @@ architecture RTL of RECV_BUF is
     signal    i_push_size       :  std_logic_vector(BUF_DEPTH   downto 0);
     signal    i_push_last       :  std_logic;
     signal    i_push_valid      :  std_logic;
+    signal    i_abort           :  std_logic;
+    signal    i_abort_start     :  std_logic;
+    signal    i_pause           :  std_logic;
+    signal    i_pause_data      :  std_logic;
+    signal    i_pause_load      :  std_logic;
     -------------------------------------------------------------------------------
     -- バッファ読み出し側の各種信号
     -------------------------------------------------------------------------------
     signal    s_push_size       :  std_logic_vector(BUF_DEPTH   downto 0);
     signal    s_push_last       :  std_logic;
     signal    s_push_valid      :  std_logic;
+    signal    s_abort_done      :  std_logic;
+    signal    s_abort_busy      :  std_logic;
 begin
     -------------------------------------------------------------------------------
     -- 入力側ブロック
@@ -181,7 +202,8 @@ begin
         -- 入力側のデータ幅が１バイトの場合...
         ---------------------------------------------------------------------------
         I1: if (I_BYTES = 1) generate
-            i_push_size  <= std_logic_vector(to_unsigned(1, i_push_size'length));
+            i_push_size  <= std_logic_vector(to_unsigned(1, i_push_size'length)) when I_STRB(0) = '1' else
+                            std_logic_vector(to_unsigned(0, i_push_size'length));
             i_push_last  <= I_LAST;
             i_push_valid <= '1' when (I_VALID = '1' and buf_ready) else '0';
             I_READY      <= '1' when (intake_ready) else '0';
@@ -196,16 +218,19 @@ begin
             -----------------------------------------------------------------------
             -- buf_we    : バッファ書き込みイネーブル信号(バイト単位)
             -----------------------------------------------------------------------
-            process (buf_waddr, i_push_valid) begin
+            process (buf_waddr, i_push_valid, I_STRB) begin
                 for i in buf_we'range loop
                     if (BUF_WIDTH > 0) then
-                        if i_push_valid = '1' and i = to_01(unsigned(buf_waddr(BUF_WIDTH-1 downto 0))) then
+                        if (i_push_valid = '1') and
+                           (I_STRB(0)    = '1') and
+                           (i = to_01(unsigned(buf_waddr(BUF_WIDTH-1 downto 0)))) then
                             buf_we(i) <= '1';
                         else
                             buf_we(i) <= '0';
                         end if;
                     else
-                        if (i_push_valid = '1') then
+                        if (i_push_valid = '1') and
+                           (I_STRB(0)    = '1') then
                             buf_we(i) <= '1';
                         else
                             buf_we(i) <= '0';
@@ -215,13 +240,84 @@ begin
             end process;
         end generate;
         ---------------------------------------------------------------------------
+        -- 入力側のデータ幅が２バイト以上の場合...
+        ---------------------------------------------------------------------------
+        I2: if (I_BYTES > 1) generate
+            signal    queue_valid    :  std_logic;
+            signal    queue_ready    :  std_logic;
+            signal    queue_flush    :  std_logic;
+            signal    queue_last     :  std_logic;
+            signal    queue_strb     :  std_logic_vector(2**(BUF_WIDTH  )-1 downto 0);
+        begin 
+            QUEUE: REDUCER
+                generic map (                             --
+                    WORD_BITS   => 8                    , --
+                    STRB_BITS   => 1                    , --
+                    I_WIDTH     => I_BYTES              , --
+                    O_WIDTH     => 2**BUF_WIDTH         , --
+                    QUEUE_SIZE  => 0                    , --
+                    VALID_MIN   => 0                    , --
+                    VALID_MAX   => 0                    , --
+                    O_SHIFT_MIN => 2**BUF_WIDTH         , --
+                    O_SHIFT_MAX => 2**BUF_WIDTH         , --
+                    I_JUSTIFIED => 1                    , --
+                    FLUSH_ENABLE=> 1                      --
+                )                                         --
+                port map (                                --
+                    CLK         => I_CLK                , -- In  :
+                    RST         => RST                  , -- In  :
+                    CLR         => i_reset              , -- In  :
+                    BUSY        => open                 , -- Out :
+                    VALID       => open                 , -- Out :
+                    I_DATA      => I_DATA               , -- In  :
+                    I_STRB      => I_STRB               , -- In  :
+                    I_DONE      => I_LAST               , -- In  :
+                    I_FLUSH     => I_LAST               , -- In  :
+                    I_VAL       => I_VALID              , -- In  :
+                    I_RDY       => I_READY              , -- Out :
+                    O_DATA      => buf_wdata            , -- Out :
+                    O_STRB      => queue_strb           , -- Out :
+                    O_DONE      => queue_last           , -- Out :
+                    O_FLUSH     => queue_flush          , -- Out :
+                    O_VAL       => queue_valid          , -- Out :
+                    O_RDY       => queue_ready            -- In  :
+                );                                        --
+            queue_ready  <= '1' when (intake_ready = TRUE) else '0';
+            i_push_valid <= '1' when (queue_valid = '1' and buf_ready) else '0';
+            i_push_last  <= '1' when (queue_last  = '1') else '0';
+            buf_we       <= queue_strb when (i_push_valid = '1') else (others => '0');
+            process (queue_strb)
+                variable i_size  : integer range 0 to I_BYTES;
+                function count_bits(I: std_logic_vector) return integer is
+                    alias    vec : std_logic_vector(I'length-1 downto 0) is I;
+                    variable num : integer range 0 to vec'length;
+                begin
+                    if (vec'length = 1) then
+                        if vec(0) = '1' then
+                            num := 1;
+                        else
+                            num := 0;
+                        end if;
+                    else
+                        num := count_bits(vec(vec'length/2-1 downto 0))
+                             + count_bits(vec(vec'length  -1 downto vec'length/2));
+                    end if;
+                    return num;
+                end function;
+            begin
+                i_size := count_bits(queue_strb);
+                i_push_size <= std_logic_vector(to_unsigned(i_size, i_push_size'length));
+            end process;
+        end generate;
+        ---------------------------------------------------------------------------
         -- buf_waddr    : バッファ書き込みアドレス
         -- buf_counter  : バッファに格納されているバイト数
         -- buf_ready    : バッファに空きがあることを示すフラグ
         -- intake_ready : 入力許可信号. buf_ready とリセット時の値が違うことに注意.
         ---------------------------------------------------------------------------
         process (I_CLK, RST)
-            variable next_counter : unsigned(BUF_DEPTH+1 downto 0);
+            variable next_counter :  unsigned(BUF_DEPTH+1 downto 0);
+            variable next_addr    :  unsigned(BUF_DEPTH+1 downto 0);
         begin
             if    (RST = '1') then
                     buf_waddr    <= (others => '0');
@@ -229,7 +325,7 @@ begin
                     buf_ready    <= FALSE;
                     intake_ready <= TRUE;
             elsif (I_CLK'event and I_CLK = '1') then
-                if (i_reset = '1') then
+                if (i_reset = '1' or i_abort = '1') then
                     buf_waddr    <= (others => '0');
                     buf_counter  <= (others => '0');
                     buf_ready    <= FALSE;
@@ -243,7 +339,7 @@ begin
                         next_counter := next_counter - resize(unsigned(i_pull_size),next_counter'length);
                     end if;
                     buf_counter <= next_counter(buf_counter'range);
-                    if (next_counter <= 2**BUF_DEPTH - I_BYTES) then
+                    if (next_counter <= 2**BUF_DEPTH - I_BYTES) and (i_pause = '0') then
                         buf_ready    <= TRUE;
                         intake_ready <= TRUE;
                     else
@@ -251,7 +347,9 @@ begin
                         intake_ready <= FALSE;
                     end if;
                     if (i_push_valid = '1') then
-                        buf_waddr <= std_logic_vector(unsigned(buf_waddr) + unsigned(i_push_size));
+                        next_addr := "00" & unsigned(buf_waddr);
+                        next_addr := next_addr + resize(unsigned(i_push_size), next_addr'length);
+                        buf_waddr <= std_logic_vector(next_addr(buf_waddr'range));
                     end if;
                 end if;
             end if;
@@ -262,9 +360,21 @@ begin
         process (I_CLK, RST) begin
             if    (RST = '1') then
                     i_reset <= '1';
+                    i_abort <= '0';
+                    i_pause <= '0';
             elsif (I_CLK'event and I_CLK = '1') then
                 if (i_reset_load = '1') then
                     i_reset <= i_reset_data;
+                end if;
+                if (i_abort_start = '1') then
+                    i_abort <= '1';
+                else
+                    i_abort <= '0';
+                end if;
+                if (i_reset = '1') then
+                    i_pause <= '0';
+                elsif (i_pause_load = '1') then
+                    i_pause <= i_pause_data;
                 end if;
             end if;
         end process;
@@ -280,14 +390,17 @@ begin
         constant SYNC_SIZE_LOW  :  integer := SYNC_DATA_LOW;
         constant SYNC_SIZE_HIGH :  integer := SYNC_DATA_LOW  + i_push_size'length-1;
         constant SYNC_LAST_POS  :  integer := SYNC_SIZE_HIGH + 1;
-        constant SYNC_DATA_HIGH :  integer := SYNC_LAST_POS;
+        constant SYNC_PUSH_POS  :  integer := SYNC_LAST_POS;
+        constant SYNC_ABORT_POS :  integer := SYNC_PUSH_POS  + 1;
+        constant SYNC_DATA_HIGH :  integer := SYNC_ABORT_POS;
         constant SYNC_SIZE      :  std_logic_vector(SYNC_SIZE_HIGH downto SYNC_SIZE_LOW) := (others => '0');
         constant SYNC_DATA      :  std_logic_vector(SYNC_DATA_HIGH downto SYNC_DATA_LOW) := (others => '0');
+        constant SYNC_VALID     :  std_logic_vector(SYNC_ABORT_POS downto SYNC_PUSH_POS) := (others => '0');
         signal   sync_i_data    :  std_logic_vector(SYNC_DATA'range);
-        signal   sync_i_valid   :  std_logic;
+        signal   sync_i_valid   :  std_logic_vector(SYNC_VALID'range);
         signal   sync_i_ready   :  std_logic;
         signal   sync_o_data    :  std_logic_vector(SYNC_DATA'range);
-        signal   sync_o_valid   :  std_logic;
+        signal   sync_o_valid   :  std_logic_vector(SYNC_VALID'range);
     begin
         SIZE: SYNCRONIZER_INPUT_PENDING_REGISTER  -- 
             generic map(                          -- 
@@ -301,8 +414,8 @@ begin
                 I_DATA      => i_push_size      , -- In  :
                 I_VAL       => i_push_valid     , -- In  :
                 I_PAUSE     => sync_i_pause     , -- In  :
-                O_DATA      => sync_i_data(SYNC_SIZE'range),  -- Out :
-                O_VAL       => sync_i_valid     , -- Out :
+                O_DATA      => sync_i_data (SYNC_SIZE'range),  -- Out :
+                O_VAL       => open             , -- Out :
                 O_RDY       => sync_i_ready       -- In  :
             );                                    -- 
         LAST: SYNCRONIZER_INPUT_PENDING_REGISTER  -- 
@@ -317,14 +430,30 @@ begin
                 I_DATA(0)   => i_push_last      , -- In  :
                 I_VAL       => i_push_valid     , -- In  :
                 I_PAUSE     => sync_i_pause     , -- In  :
-                O_DATA(0)   => sync_i_data(SYNC_LAST_POS),  -- Out :
-                O_VAL       => open             , -- Out :
+                O_DATA(0)   => sync_i_data (SYNC_LAST_POS), -- Out :
+                O_VAL       => sync_i_valid(SYNC_PUSH_POS), -- Out :
+                O_RDY       => sync_i_ready       -- In  :
+            );                                    -- 
+        ABORT: SYNCRONIZER_INPUT_PENDING_REGISTER -- 
+            generic map(                          -- 
+                DATA_BITS   => 1                , -- 
+                OPERATION   => 0                  -- 
+            )                                     -- 
+            port map (                            -- 
+                CLK         => I_CLK            , -- In  : 
+                RST         => RST              , -- In  : 
+                CLR         => i_reset          , -- In  :
+                I_DATA(0)   => '1'              , -- In  :
+                I_VAL       => i_abort          , -- In  :
+                I_PAUSE     => sync_i_pause     , -- In  :
+                O_DATA(0)   => sync_i_data (SYNC_ABORT_POS), -- Out :
+                O_VAL       => sync_i_valid(SYNC_ABORT_POS), -- Out :
                 O_RDY       => sync_i_ready       -- In  :
             );                                    -- 
         SYNC: SYNCRONIZER                         -- 
             generic map(                          -- 
                 DATA_BITS   => SYNC_DATA'length , -- 
-                VAL_BITS    => 1                , -- 
+                VAL_BITS    => SYNC_VALID'length, -- 
                 I_CLK_RATE  => I_CLK_RATE       , -- 
                 O_CLK_RATE  => S_CLK_RATE       , -- 
                 O_CLK_REGS  => 1                  -- 
@@ -335,17 +464,18 @@ begin
                 I_CLR       => sync_i_clear     , -- In  :
                 I_CKE       => I_CKE            , -- In  :
                 I_DATA      => sync_i_data      , -- In  :
-                I_VAL(0)    => sync_i_valid     , -- In  :
+                I_VAL       => sync_i_valid     , -- In  :
                 I_RDY       => sync_i_ready     , -- Out :
                 O_CLK       => S_CLK            , -- In  :
                 O_CLR       => sync_o_clear     , -- In  :
                 O_CKE       => S_CKE            , -- In  :
                 O_DATA      => sync_o_data      , -- Out :
-                O_VAL(0)    => sync_o_valid       -- Out :
+                O_VAL       => sync_o_valid       -- Out :
             );
-        s_push_size  <= sync_o_data(SYNC_SIZE'range);
-        s_push_last  <= sync_o_data(SYNC_LAST_POS);
-        s_push_valid <= sync_o_valid;
+        s_push_size  <= sync_o_data (SYNC_SIZE'range);
+        s_push_last  <= sync_o_data (SYNC_LAST_POS);
+        s_push_valid <= sync_o_valid(SYNC_PUSH_POS);
+        s_abort_done <= sync_o_valid(SYNC_ABORT_POS);
     end block;
     -------------------------------------------------------------------------------
     -- バッファ読み出し側から入力側への信号の伝搬
@@ -357,15 +487,19 @@ begin
         constant SYNC_DATA_LOW  :  integer := 0;
         constant SYNC_SIZE_LOW  :  integer := SYNC_DATA_LOW;
         constant SYNC_SIZE_HIGH :  integer := SYNC_DATA_LOW  + i_push_size'length-1;
-        constant SYNC_RESET_POS :  integer := SYNC_SIZE_HIGH + 1;
+        constant SYNC_PULL_POS  :  integer := SYNC_SIZE_HIGH;
+        constant SYNC_ABORT_POS :  integer := SYNC_PULL_POS  + 1;
+        constant SYNC_PAUSE_POS :  integer := SYNC_ABORT_POS + 1;
+        constant SYNC_RESET_POS :  integer := SYNC_PAUSE_POS + 1;
         constant SYNC_DATA_HIGH :  integer := SYNC_RESET_POS;
         constant SYNC_SIZE      :  std_logic_vector(SYNC_SIZE_HIGH downto SYNC_SIZE_LOW) := (others => '0');
         constant SYNC_DATA      :  std_logic_vector(SYNC_DATA_HIGH downto SYNC_DATA_LOW) := (others => '0');
-        signal   sync_i_data    :  std_logic_vector(SYNC_DATA'range);
-        signal   sync_i_valid   :  std_logic_vector(1 downto 0);
+        constant SYNC_VALID     :  std_logic_vector(SYNC_RESET_POS downto SYNC_PULL_POS) := (others => '0');
+        signal   sync_i_data    :  std_logic_vector(SYNC_DATA 'range);
+        signal   sync_i_valid   :  std_logic_vector(SYNC_VALID'range);
         signal   sync_i_ready   :  std_logic;
-        signal   sync_o_data    :  std_logic_vector(SYNC_DATA'range);
-        signal   sync_o_valid   :  std_logic_vector(1 downto 0);
+        signal   sync_o_data    :  std_logic_vector(SYNC_DATA 'range);
+        signal   sync_o_valid   :  std_logic_vector(SYNC_VALID'range);
     begin
         SIZE: SYNCRONIZER_INPUT_PENDING_REGISTER  -- 
             generic map(                          -- 
@@ -379,14 +513,46 @@ begin
                 I_DATA      => PULL_SIZE        , -- In  :
                 I_VAL       => PULL_LOAD        , -- In  :
                 I_PAUSE     => sync_i_pause     , -- In  :
-                O_DATA      => sync_i_data(SYNC_SIZE'range),  -- Out :
-                O_VAL       => sync_i_valid(0)  , -- Out :
+                O_DATA      => sync_i_data (SYNC_SIZE'range), -- Out :
+                O_VAL       => sync_i_valid(SYNC_PULL_POS  ), -- Out :
+                O_RDY       => sync_i_ready       -- In  :
+            );                                    -- 
+        ABORT:SYNCRONIZER_INPUT_PENDING_REGISTER  -- 
+            generic map(                          -- 
+                DATA_BITS   => 1                , -- 
+                OPERATION   => 0                  -- 
+            )                                     -- 
+            port map (                            -- 
+                CLK         => S_CLK            , -- In  : 
+                RST         => RST              , -- In  : 
+                CLR         => sync_i_clear     , -- In  :
+                I_DATA(0)   => '1'              , -- In  :
+                I_VAL       => ABORT_START      , -- In  :
+                I_PAUSE     => sync_i_pause     , -- In  :
+                O_DATA(0)   => sync_i_data (SYNC_ABORT_POS), -- Out :
+                O_VAL       => sync_i_valid(SYNC_ABORT_POS), -- Out :
+                O_RDY       => sync_i_ready       -- In  :
+            );                                    -- 
+        PAUSE:SYNCRONIZER_INPUT_PENDING_REGISTER  -- 
+            generic map(                          -- 
+                DATA_BITS   => 1                , -- 
+                OPERATION   => 0                  -- 
+            )                                     -- 
+            port map (                            -- 
+                CLK         => S_CLK            , -- In  : 
+                RST         => RST              , -- In  : 
+                CLR         => sync_i_clear     , -- In  :
+                I_DATA(0)   => PAUSE_DATA       , -- In  :
+                I_VAL       => PAUSE_LOAD       , -- In  :
+                I_PAUSE     => sync_i_pause     , -- In  :
+                O_DATA(0)   => sync_i_data (SYNC_PAUSE_POS), -- Out :
+                O_VAL       => sync_i_valid(SYNC_PAUSE_POS), -- Out :
                 O_RDY       => sync_i_ready       -- In  :
             );                                    -- 
         RESET:SYNCRONIZER_INPUT_PENDING_REGISTER  -- 
             generic map(                          -- 
                 DATA_BITS   => 1                , -- 
-                OPERATION   => 1                  -- 
+                OPERATION   => 0                  -- 
             )                                     -- 
             port map (                            -- 
                 CLK         => S_CLK            , -- In  : 
@@ -395,14 +561,14 @@ begin
                 I_DATA(0)   => RESET_DATA       , -- In  :
                 I_VAL       => RESET_LOAD       , -- In  :
                 I_PAUSE     => sync_i_pause     , -- In  :
-                O_DATA(0)   => sync_i_data(SYNC_RESET_POS),  -- Out :
-                O_VAL       => sync_i_valid(1)  , -- Out :
+                O_DATA(0)   => sync_i_data (SYNC_RESET_POS), -- Out :
+                O_VAL       => sync_i_valid(SYNC_RESET_POS), -- Out :
                 O_RDY       => sync_i_ready       -- In  :
             );                                    -- 
         SYNC: SYNCRONIZER                         -- 
             generic map(                          -- 
                 DATA_BITS   => SYNC_DATA'length , -- 
-                VAL_BITS    => 2                , -- 
+                VAL_BITS    => SYNC_VALID'length, -- 
                 I_CLK_RATE  => S_CLK_RATE       , -- 
                 O_CLK_RATE  => I_CLK_RATE       , -- 
                 O_CLK_REGS  => 0                  -- 
@@ -421,10 +587,13 @@ begin
                 O_DATA      => sync_o_data      , -- Out :
                 O_VAL       => sync_o_valid       -- Out :
             );
-        i_pull_size  <= sync_o_data(SYNC_SIZE'range);
-        i_pull_valid <= sync_o_valid(0);
-        i_reset_data <= sync_o_data(SYNC_RESET_POS);
-        i_reset_load <= sync_o_valid(1);
+        i_pull_size   <= sync_o_data (SYNC_SIZE'range);
+        i_pull_valid  <= sync_o_valid(SYNC_PULL_POS );
+        i_abort_start <= sync_o_valid(SYNC_ABORT_POS);
+        i_pause_data  <= sync_o_data (SYNC_PAUSE_POS);
+        i_pause_load  <= sync_o_valid(SYNC_PAUSE_POS);
+        i_reset_data  <= sync_o_data (SYNC_RESET_POS);
+        i_reset_load  <= sync_o_valid(SYNC_RESET_POS);
     end block;
     -------------------------------------------------------------------------------
     -- バッファ読み出し側
@@ -438,29 +607,34 @@ begin
         -- buf_curr_addr : データが格納されているバッファの先頭アドレス
         ---------------------------------------------------------------------------
         process (S_CLK, RST)
-            variable next_counter : unsigned(BUF_DEPTH+1 downto 0);
+            variable next_counter  : unsigned(BUF_DEPTH+1 downto 0);
+            variable buf_next_addr : unsigned(BUF_DEPTH   downto 0);
         begin
             if    (RST = '1') then
                     buf_counter   <= (others => '0');
                     buf_curr_addr <= (others => '0');
                     BUF_LAST      <= '0';
             elsif (S_CLK'event and S_CLK = '1') then
-                if (RESET_LOAD = '1' and RESET_DATA = '1') then
+                if (RESET_LOAD   = '1' and RESET_DATA = '1') or
+                   (ABORT_START  = '1') or
+                   (s_abort_busy = '1') then
                     buf_counter   <= (others => '0');
                     buf_curr_addr <= (others => '0');
                     BUF_LAST      <= '0';
                 else
                     next_counter := "0" & buf_counter;
                     if (s_push_valid = '1') then
-                        next_counter := next_counter + resize(unsigned(s_push_size),next_counter'length);
+                        next_counter := next_counter   + resize(unsigned(s_push_size), next_counter'length);
                     end if;
                     if (PULL_LOAD    = '1') then
-                        next_counter := next_counter - resize(unsigned(  PULL_SIZE),next_counter'length);
+                        next_counter := next_counter   - resize(unsigned(  PULL_SIZE), next_counter'length);
                     end if;
-                    buf_counter <= next_counter(buf_counter'range);
+                    buf_counter   <= next_counter(buf_counter'range);
+                    buf_next_addr := "0" & buf_curr_addr;
                     if (PULL_LOAD    = '1') then
-                        buf_curr_addr <= buf_curr_addr + unsigned(PULL_SIZE);
+                        buf_next_addr := buf_next_addr + resize(unsigned(  PULL_SIZE),buf_next_addr'length);
                     end if;
+                    buf_curr_addr <= buf_next_addr(buf_curr_addr'range);
                     if    (s_push_valid = '1') then
                         BUF_LAST <= s_push_last;
                     elsif (PULL_LOAD    = '1') then
@@ -469,8 +643,28 @@ begin
                 end if;
             end if;
         end process;
-        BUF_COUNT <= std_logic_vector(buf_counter);
-        BUF_CADDR <= std_logic_vector(buf_curr_addr);
+        ---------------------------------------------------------------------------
+        -- s_abort_busy : 転送中止中であることを示す.
+        ---------------------------------------------------------------------------
+        process (S_CLK, RST) begin
+            if    (RST = '1') then
+                    s_abort_busy <= '0';
+            elsif (S_CLK'event and S_CLK = '1') then
+                if    (RESET_LOAD = '1' and RESET_DATA = '1') then
+                    s_abort_busy <= '0';
+                elsif (s_abort_done = '1') then
+                    s_abort_busy <= '0';
+                elsif (ABORT_START  = '1') then
+                    s_abort_busy <= '1';
+                end if;
+            end if;
+        end process;
+        ABORT_BUSY <= s_abort_busy;
+        ---------------------------------------------------------------------------
+        --
+        ---------------------------------------------------------------------------
+        BUF_COUNT  <= std_logic_vector(buf_counter);
+        BUF_CADDR  <= std_logic_vector(buf_curr_addr);
     end block;
     -------------------------------------------------------------------------------
     -- バッファメモリ
@@ -481,7 +675,7 @@ begin
             RWIDTH      => BUF_WIDTH+3         , --
             WWIDTH      => BUF_WIDTH+3         , --
             WEBIT       => BUF_WIDTH           , --
-            ID          => 0                     -- 
+            ID          => 1                     -- 
         )                                        -- 
         port map (                               -- 
             WCLK        => I_CLK               , -- In  :

@@ -4,33 +4,62 @@ GHDLFLAGS=--mb-comments -P../../PipeWork/sim/ghdl -P../../Dummy_Plug/sim/ghdl/du
 SRC_MAIN_PATH = ../../src/main/vhdl
 SRC_TEST_PATH = ../../src/test/vhdl
 
-TEST_BENCH    = test_bench \
+TEST_BENCH    = test_1_1 \
+                test_1_4 \
+                test_2_1 \
+                test_2_4 \
                 $(END_LIST)
 
 all: $(TEST_BENCH)
 
+.PHONY : clean $(TEST_BENCH)
+
 clean:
 	rm -f *.o *.cf $(TEST_BENCH)
 
-$(TEST_BENCH) : $(addsuffix .o,$(TEST_BENCH)) ptty_axi4.o ptty_send.o ptty_recv.o recv_buf.o send_buf.o
+test_1_1       : test_1_1.o ../../src/test/scenarios/test_1_1.snr
 	 $(GHDL) -e $(GHDLFLAGS) --work=work $@
 	-$(GHDL) -r $(GHDLFLAGS) --work=work $@
 
-test_bench.o : $(SRC_TEST_PATH)/test_bench.vhd
+test_1_4       : test_1_4.o ../../src/test/scenarios/test_1_4.snr
+	 $(GHDL) -e $(GHDLFLAGS) --work=work $@
+	-$(GHDL) -r $(GHDLFLAGS) --work=work $@
+
+test_2_1       : test_2_1.o ../../src/test/scenarios/test_2.snr
+	 $(GHDL) -e $(GHDLFLAGS) --work=work $@
+	-$(GHDL) -r $(GHDLFLAGS) --work=work $@
+
+test_2_4       : test_2_4.o ../../src/test/scenarios/test_2.snr
+	 $(GHDL) -e $(GHDLFLAGS) --work=work $@
+	-$(GHDL) -r $(GHDLFLAGS) --work=work $@
+
+test_1_1.o     : test_1_1.vhd test_bench.o ptty_axi4.o ptty_tx.o ptty_rx.o ptty_rxd_buf.o ptty_txd_buf.o
 	 $(GHDL) -a $(GHDLFLAGS) --work=work $<
 
-ptty_axi4.o  : $(SRC_MAIN_PATH)/ptty_axi4.vhd
+test_1_4.o     : test_1_4.vhd test_bench.o ptty_axi4.o ptty_tx.o ptty_rx.o ptty_rxd_buf.o ptty_txd_buf.o
 	 $(GHDL) -a $(GHDLFLAGS) --work=work $<
 
-ptty_send.o  : $(SRC_MAIN_PATH)/ptty_send.vhd
+test_2_1.o     : test_2_1.vhd test_bench.o ptty_axi4.o ptty_tx.o ptty_rx.o ptty_rxd_buf.o ptty_txd_buf.o
 	 $(GHDL) -a $(GHDLFLAGS) --work=work $<
 
-ptty_recv.o  : $(SRC_MAIN_PATH)/ptty_recv.vhd
+test_2_4.o     : test_2_4.vhd test_bench.o ptty_axi4.o ptty_tx.o ptty_rx.o ptty_rxd_buf.o ptty_txd_buf.o
 	 $(GHDL) -a $(GHDLFLAGS) --work=work $<
 
-send_buf.o   : $(SRC_MAIN_PATH)/send_buf.vhd
+test_bench.o   : $(SRC_TEST_PATH)/test_bench.vhd
 	 $(GHDL) -a $(GHDLFLAGS) --work=work $<
 
-recv_buf.o   : $(SRC_MAIN_PATH)/recv_buf.vhd
+ptty_axi4.o    : $(SRC_MAIN_PATH)/ptty_axi4.vhd
+	 $(GHDL) -a $(GHDLFLAGS) --work=work $<
+
+ptty_tx.o      : $(SRC_MAIN_PATH)/ptty_tx.vhd
+	 $(GHDL) -a $(GHDLFLAGS) --work=work $<
+
+ptty_rx.o      : $(SRC_MAIN_PATH)/ptty_rx.vhd
+	 $(GHDL) -a $(GHDLFLAGS) --work=work $<
+
+ptty_txd_buf.o : $(SRC_MAIN_PATH)/ptty_txd_buf.vhd
+	 $(GHDL) -a $(GHDLFLAGS) --work=work $<
+
+ptty_rxd_buf.o : $(SRC_MAIN_PATH)/ptty_rxd_buf.vhd
 	 $(GHDL) -a $(GHDLFLAGS) --work=work $<
 
