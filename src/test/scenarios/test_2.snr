@@ -88,5 +88,53 @@
       TIMEOUT: 100
   - WAIT : {GPI(0) : 0, TIMEOUT: 1000}
 ---
+- RXD : 
+  - XFER   : {DATA: 0x0E0D0C0B0A09080706050403020100, LAST:1}
+
+- CSR :
+  - WRITE:
+      ADDR: 0x0000002C
+      DATA: 0x04000000
+      RESP: OKAY
+      TIMEOUT: 100
+  - WAIT : {GPI(0) : 1, TIMEOUT: 1000}
+  - WAIT : 20
+  - READ :
+      ADDR: 0x00000028
+      DATA: 0x0C10000F
+      RESP: OKAY
+      TIMEOUT: 100
+  - READ :
+      ADDR: 0x0000002C
+      DATA: 0x04810000
+      RESP: OKAY
+      TIMEOUT: 100
+  - READ :
+      ADDR: 0x00000C10
+      DATA: 0x03020100
+      RESP: OKAY
+      TIMEOUT: 100
+  - READ :
+      ADDR: 0x00000C14
+      DATA: 0x07060504
+      RESP: OKAY
+      TIMEOUT: 100
+  - READ :
+      ADDR: 0x00000C18
+      DATA: 0x0B0A0908
+      RESP: OKAY
+      TIMEOUT: 100
+  - READ :
+      ADDR: 0x00000C1C
+      DATA: 0x--0E0D0C
+      RESP: OKAY
+      TIMEOUT: 100
+  - WRITE:
+      ADDR: 0x0000002C
+      DATA: 0x1000000F
+      RESP: OKAY
+      TIMEOUT: 100
+  - WAIT : {GPI(0) : 0, TIMEOUT: 1000}
+---
 - MARCHAL : 
   - SAY : PTTY_AXI4_TEST_2 DONE.

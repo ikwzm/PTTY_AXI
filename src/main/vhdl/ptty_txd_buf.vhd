@@ -1,8 +1,8 @@
 -----------------------------------------------------------------------------------
 --!     @file    ptty_txd_buf.vhd
 --!     @brief   Transimit Data Buffer for PTTY_AXI4
---!     @version 0.1.0
---!     @date    2015/9/6
+--!     @version 0.2.0
+--!     @date    2015/11/2
 --!     @author  Ichiro Kawazome <ichiro_k@ca2.so-net.ne.jp>
 -----------------------------------------------------------------------------------
 --

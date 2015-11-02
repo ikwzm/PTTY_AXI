@@ -1,8 +1,8 @@
 -----------------------------------------------------------------------------------
 --!     @file    ptty_rxd_buf.vhd
 --!     @brief   Receive Data Buffer for PTTY_AXI4
---!     @version 0.1.0
---!     @date    2015/9/6
+--!     @version 0.2.0
+--!     @date    2015/11/2
 --!     @author  Ichiro Kawazome <ichiro_k@ca2.so-net.ne.jp>
 -----------------------------------------------------------------------------------
 --
@@ -155,6 +155,7 @@ use     ieee.std_logic_1164.all;
 use     ieee.numeric_std.all;
 library PIPEWORK;
 use     PIPEWORK.COMPONENTS.SDPRAM;
+use     PIPEWORK.COMPONENTS.REDUCER;
 use     PIPEWORK.COMPONENTS.SYNCRONIZER;
 use     PIPEWORK.COMPONENTS.SYNCRONIZER_INPUT_PENDING_REGISTER;
 architecture RTL of PTTY_RXD_BUF is
@@ -236,6 +237,76 @@ begin
                         end if;
                     end if;
                 end loop;
+            end process;
+        end generate;
+        ---------------------------------------------------------------------------
+        -- 入力側のデータ幅が２バイト以上の場合...
+        ---------------------------------------------------------------------------
+        I2: if (I_BYTES > 1) generate
+            signal    queue_valid    :  std_logic;
+            signal    queue_ready    :  std_logic;
+            signal    queue_flush    :  std_logic;
+            signal    queue_last     :  std_logic;
+            signal    queue_strb     :  std_logic_vector(2**(BUF_WIDTH  )-1 downto 0);
+        begin 
+            QUEUE: REDUCER
+                generic map (                             --
+                    WORD_BITS   => 8                    , --
+                    STRB_BITS   => 1                    , --
+                    I_WIDTH     => I_BYTES              , --
+                    O_WIDTH     => 2**BUF_WIDTH         , --
+                    QUEUE_SIZE  => 0                    , --
+                    VALID_MIN   => 0                    , --
+                    VALID_MAX   => 0                    , --
+                    O_SHIFT_MIN => 2**BUF_WIDTH         , --
+                    O_SHIFT_MAX => 2**BUF_WIDTH         , --
+                    I_JUSTIFIED => 1                    , --
+                    FLUSH_ENABLE=> 1                      --
+                )                                         --
+                port map (                                --
+                    CLK         => I_CLK                , -- In  :
+                    RST         => RST                  , -- In  :
+                    CLR         => i_reset              , -- In  :
+                    BUSY        => open                 , -- Out :
+                    VALID       => open                 , -- Out :
+                    I_DATA      => I_DATA               , -- In  :
+                    I_STRB      => I_STRB               , -- In  :
+                    I_DONE      => I_LAST               , -- In  :
+                    I_FLUSH     => I_LAST               , -- In  :
+                    I_VAL       => I_VALID              , -- In  :
+                    I_RDY       => I_READY              , -- Out :
+                    O_DATA      => buf_wdata            , -- Out :
+                    O_STRB      => queue_strb           , -- Out :
+                    O_DONE      => queue_last           , -- Out :
+                    O_FLUSH     => queue_flush          , -- Out :
+                    O_VAL       => queue_valid          , -- Out :
+                    O_RDY       => queue_ready            -- In  :
+                );                                        --
+            queue_ready  <= '1' when (intake_ready = TRUE) else '0';
+            i_push_valid <= '1' when (queue_valid = '1' and buf_ready) else '0';
+            i_push_last  <= '1' when (queue_last  = '1') else '0';
+            buf_we       <= queue_strb when (i_push_valid = '1') else (others => '0');
+            process (queue_strb)
+                variable i_size  : integer range 0 to I_BYTES;
+                function count_bits(I: std_logic_vector) return integer is
+                    alias    vec : std_logic_vector(I'length-1 downto 0) is I;
+                    variable num : integer range 0 to vec'length;
+                begin
+                    if (vec'length = 1) then
+                        if vec(0) = '1' then
+                            num := 1;
+                        else
+                            num := 0;
+                        end if;
+                    else
+                        num := count_bits(vec(vec'length/2-1 downto 0))
+                             + count_bits(vec(vec'length  -1 downto vec'length/2));
+                    end if;
+                    return num;
+                end function;
+            begin
+                i_size := count_bits(queue_strb);
+                i_push_size <= std_logic_vector(to_unsigned(i_size, i_push_size'length));
             end process;
         end generate;
         ---------------------------------------------------------------------------
@@ -619,8 +690,8 @@ end RTL;
 -----------------------------------------------------------------------------------
 --!     @file    ptty_txd_buf.vhd
 --!     @brief   Transimit Data Buffer for PTTY_AXI4
---!     @version 0.1.0
---!     @date    2015/9/6
+--!     @version 0.2.0
+--!     @date    2015/11/2
 --!     @author  Ichiro Kawazome <ichiro_k@ca2.so-net.ne.jp>
 -----------------------------------------------------------------------------------
 --
@@ -1370,8 +1441,8 @@ end RTL;
 -----------------------------------------------------------------------------------
 --!     @file    ptty_rx
 --!     @brief   PTTY Receive Data Core
---!     @version 0.1.0
---!     @date    2015/9/6
+--!     @version 0.2.0
+--!     @date    2015/11/2
 --!     @author  Ichiro Kawazome <ichiro_k@ca2.so-net.ne.jp>
 -----------------------------------------------------------------------------------
 --
@@ -1966,8 +2037,8 @@ end RTL;
 -----------------------------------------------------------------------------------
 --!     @file    ptty_tx
 --!     @brief   PTTY Transimit Data Core
---!     @version 0.1.0
---!     @date    2015/9/5
+--!     @version 0.2.0
+--!     @date    2015/11/2
 --!     @author  Ichiro Kawazome <ichiro_k@ca2.so-net.ne.jp>
 -----------------------------------------------------------------------------------
 --
@@ -2607,8 +2678,8 @@ end RTL;
 -----------------------------------------------------------------------------------
 --!     @file    ptty_axi4.vhd
 --!     @brief   PTTY_AXI4
---!     @version 0.1.0
---!     @date    2015/8/29
+--!     @version 0.2.0
+--!     @date    2015/11/2
 --!     @author  Ichiro Kawazome <ichiro_k@ca2.so-net.ne.jp>
 -----------------------------------------------------------------------------------
 --
@@ -2652,8 +2723,8 @@ entity  PTTY_AXI4 is
         CSR_ADDR_WIDTH  : integer range 12 to   64 := 12;
         CSR_DATA_WIDTH  : integer range  8 to 1024 := 32;
         CSR_ID_WIDTH    : integer                  := 12;
-        RXD_BYTES       : integer range  1 to    1 :=  1;
-        TXD_BYTES       : integer range  1 to    1 :=  1
+        RXD_BYTES       : positive                 :=  1;
+        TXD_BYTES       : positive                 :=  1
     );
     port (
     -------------------------------------------------------------------------------
@@ -2721,7 +2792,7 @@ entity  PTTY_AXI4 is
         RXD_TDATA       : --! @brief RECEIVE DATA DATA :
                           --! 入力側データ
                           in  std_logic_vector(8*RXD_BYTES-1 downto 0);
-        RXD_TSTRB       : --! @brief RECEIVE DATA STROBE :
+        RXD_TKEEP       : --! @brief RECEIVE DATA STROBE :
                           --! 入力側データ
                           in  std_logic_vector(  RXD_BYTES-1 downto 0);
         RXD_TLAST       : --! @brief RECEIVE DATA LAST :
@@ -2742,7 +2813,7 @@ entity  PTTY_AXI4 is
         TXD_TDATA       : --! @brief TRANSMIT DATA DATA :
                           --! 出力側データ
                           out std_logic_vector(8*TXD_BYTES-1 downto 0);
-        TXD_TSTRB       : --! @brief TRANSMIT DATA STROBE :
+        TXD_TKEEP       : --! @brief TRANSMIT DATA STROBE :
                           --! 出力側データ
                           out std_logic_vector(  TXD_BYTES-1 downto 0);
         TXD_TLAST       : --! @brief TRANSMIT DATA LAST :
@@ -3056,7 +3127,7 @@ begin
             TXD_CLK         => TXD_CLK           , -- In  :
             TXD_CKE         => '1'               , -- In  :
             TXD_DATA        => TXD_TDATA         , -- Out :
-            TXD_STRB        => TXD_TSTRB         , -- Out :
+            TXD_STRB        => TXD_TKEEP         , -- Out :
             TXD_LAST        => TXD_TLAST         , -- Out :
             TXD_VALID       => TXD_TVALID        , -- Out :
             TXD_READY       => TXD_TREADY          -- In  :
@@ -3093,7 +3164,7 @@ begin
             RXD_CLK         => RXD_CLK           , -- In  :
             RXD_CKE         => '1'               , -- In  :
             RXD_DATA        => RXD_TDATA         , -- In  :
-            RXD_STRB        => RXD_TSTRB         , -- In  :
+            RXD_STRB        => RXD_TKEEP         , -- In  :
             RXD_LAST        => RXD_TLAST         , -- In  :
             RXD_VALID       => RXD_TVALID        , -- In  :
             RXD_READY       => RXD_TREADY          -- Out :

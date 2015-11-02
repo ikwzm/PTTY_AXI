@@ -1,8 +1,8 @@
 -----------------------------------------------------------------------------------
 --!     @file    ptty_axi4.vhd
 --!     @brief   PTTY_AXI4
---!     @version 0.1.0
---!     @date    2015/8/29
+--!     @version 0.2.0
+--!     @date    2015/11/2
 --!     @author  Ichiro Kawazome <ichiro_k@ca2.so-net.ne.jp>
 -----------------------------------------------------------------------------------
 --
@@ -46,8 +46,8 @@ entity  PTTY_AXI4 is
         CSR_ADDR_WIDTH  : integer range 12 to   64 := 12;
         CSR_DATA_WIDTH  : integer range  8 to 1024 := 32;
         CSR_ID_WIDTH    : integer                  := 12;
-        RXD_BYTES       : integer range  1 to    1 :=  1;
-        TXD_BYTES       : integer range  1 to    1 :=  1
+        RXD_BYTES       : positive                 :=  1;
+        TXD_BYTES       : positive                 :=  1
     );
     port (
     -------------------------------------------------------------------------------
@@ -115,7 +115,7 @@ entity  PTTY_AXI4 is
         RXD_TDATA       : --! @brief RECEIVE DATA DATA :
                           --! 入力側データ
                           in  std_logic_vector(8*RXD_BYTES-1 downto 0);
-        RXD_TSTRB       : --! @brief RECEIVE DATA STROBE :
+        RXD_TKEEP       : --! @brief RECEIVE DATA STROBE :
                           --! 入力側データ
                           in  std_logic_vector(  RXD_BYTES-1 downto 0);
         RXD_TLAST       : --! @brief RECEIVE DATA LAST :
@@ -136,7 +136,7 @@ entity  PTTY_AXI4 is
         TXD_TDATA       : --! @brief TRANSMIT DATA DATA :
                           --! 出力側データ
                           out std_logic_vector(8*TXD_BYTES-1 downto 0);
-        TXD_TSTRB       : --! @brief TRANSMIT DATA STROBE :
+        TXD_TKEEP       : --! @brief TRANSMIT DATA STROBE :
                           --! 出力側データ
                           out std_logic_vector(  TXD_BYTES-1 downto 0);
         TXD_TLAST       : --! @brief TRANSMIT DATA LAST :
@@ -450,7 +450,7 @@ begin
             TXD_CLK         => TXD_CLK           , -- In  :
             TXD_CKE         => '1'               , -- In  :
             TXD_DATA        => TXD_TDATA         , -- Out :
-            TXD_STRB        => TXD_TSTRB         , -- Out :
+            TXD_STRB        => TXD_TKEEP         , -- Out :
             TXD_LAST        => TXD_TLAST         , -- Out :
             TXD_VALID       => TXD_TVALID        , -- Out :
             TXD_READY       => TXD_TREADY          -- In  :
@@ -487,7 +487,7 @@ begin
             RXD_CLK         => RXD_CLK           , -- In  :
             RXD_CKE         => '1'               , -- In  :
             RXD_DATA        => RXD_TDATA         , -- In  :
-            RXD_STRB        => RXD_TSTRB         , -- In  :
+            RXD_STRB        => RXD_TKEEP         , -- In  :
             RXD_LAST        => RXD_TLAST         , -- In  :
             RXD_VALID       => RXD_TVALID        , -- In  :
             RXD_READY       => RXD_TREADY          -- Out :

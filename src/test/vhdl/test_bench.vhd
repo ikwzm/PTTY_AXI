@@ -54,8 +54,10 @@ use     DUMMY_PLUG.CORE.MARGE_REPORT_STATUS;
 -----------------------------------------------------------------------------------
 entity  TEST_BENCH is
     generic (
-        NAME            : STRING := "TEST";
-        SCENARIO_FILE   : STRING := "test_1.snr"
+        NAME            : STRING   := "TEST";
+        SCENARIO_FILE   : STRING   := "test_1.snr";
+        RXD_BYTES       : positive := 1;
+        TXD_BYTES       : positive := 1
     );
 end     TEST_BENCH;
 -----------------------------------------------------------------------------------
@@ -84,13 +86,11 @@ architecture MODEL of TEST_BENCH is
                                  WUSER       => 1,
                                  RUSER       => 1,
                                  BUSER       => 1);
-    constant RXD_BYTES       : integer :=  1;
     constant RXD_WIDTH       : AXI4_STREAM_SIGNAL_WIDTH_TYPE := (
                                  ID          => 4,
                                  USER        => 4,
                                  DEST        => 4,
                                  DATA        => 8*RXD_BYTES);
-    constant TXD_BYTES       : integer :=  1;
     constant TXD_WIDTH       : AXI4_STREAM_SIGNAL_WIDTH_TYPE := (
                                  ID          => 4,
                                  USER        => 4,
@@ -179,6 +179,7 @@ architecture MODEL of TEST_BENCH is
     signal   RXD_CLK         : std_logic;
     signal   RXD_TDATA       : std_logic_vector(RXD_WIDTH.DATA   -1 downto 0);
     signal   RXD_TSTRB       : std_logic_vector(RXD_WIDTH.DATA/8 -1 downto 0);
+    signal   RXD_TKEEP       : std_logic_vector(RXD_WIDTH.DATA/8 -1 downto 0);
     signal   RXD_TLAST       : std_logic;
     signal   RXD_TVALID      : std_logic;
     signal   RXD_TREADY      : std_logic;
@@ -188,7 +189,7 @@ architecture MODEL of TEST_BENCH is
     signal   TXD_CLK         : std_logic;
     signal   TXD_TDATA       : std_logic_vector(TXD_WIDTH.DATA   -1 downto 0);
     signal   TXD_TSTRB       : std_logic_vector(TXD_WIDTH.DATA/8 -1 downto 0);
-    constant TXD_TKEEP       : std_logic_vector(TXD_WIDTH.DATA/8 -1 downto 0) := (others => '1');
+    signal   TXD_TKEEP       : std_logic_vector(TXD_WIDTH.DATA/8 -1 downto 0);
     constant TXD_TUSER       : std_logic_vector(TXD_WIDTH.USER   -1 downto 0) := (others => '0');
     constant TXD_TDEST       : std_logic_vector(TXD_WIDTH.DEST   -1 downto 0) := (others => '0');
     constant TXD_TID         : std_logic_vector(TXD_WIDTH.ID     -1 downto 0) := (others => '0');
@@ -225,8 +226,8 @@ architecture MODEL of TEST_BENCH is
             CSR_ADDR_WIDTH   : integer range 12 to   64 := 12;
             CSR_DATA_WIDTH   : integer range  8 to 1024 := 32;
             CSR_ID_WIDTH     : integer                  :=  8;
-            RXD_BYTES        : integer range  1 to    1 :=  1;
-            TXD_BYTES        : integer range  1 to    1 :=  1
+            RXD_BYTES        : positive                 :=  1;
+            TXD_BYTES        : positive                 :=  1
         );
         port (
             ARESETn          : in    std_logic;
@@ -263,13 +264,13 @@ architecture MODEL of TEST_BENCH is
             CSR_IRQ          : out   std_logic;
             RXD_CLK          : in    std_logic;
             RXD_TDATA        : in    std_logic_vector(8*RXD_BYTES-1 downto 0);
-            RXD_TSTRB        : in    std_logic_vector(  RXD_BYTES-1 downto 0);
+            RXD_TKEEP        : in    std_logic_vector(  RXD_BYTES-1 downto 0);
             RXD_TLAST        : in    std_logic;
             RXD_TVALID       : in    std_logic;
             RXD_TREADY       : out   std_logic;
             TXD_CLK          : in    std_logic;
             TXD_TDATA        : out   std_logic_vector(8*TXD_BYTES-1 downto 0);
-            TXD_TSTRB        : out   std_logic_vector(  TXD_BYTES-1 downto 0);
+            TXD_TKEEP        : out   std_logic_vector(  TXD_BYTES-1 downto 0);
             TXD_TLAST        : out   std_logic;
             TXD_TVALID       : out   std_logic;
             TXD_TREADY       : in    std_logic
@@ -494,7 +495,7 @@ begin
             ARESETn         => ARESETn         , -- In  :
             TDATA           => RXD_TDATA       , -- Out :
             TSTRB           => RXD_TSTRB       , -- Out :
-            TKEEP           => open            , -- Out :
+            TKEEP           => RXD_TKEEP       , -- Out :
             TUSER           => open            , -- Out :
             TDEST           => open            , -- Out :
             TID             => open            , -- Out :
@@ -526,7 +527,7 @@ begin
             ACLK            => TXD_CLK         , -- In  :
             ARESETn         => ARESETn         , -- In  :
             TDATA           => TXD_TDATA       , -- In  :
-            TSTRB           => TXD_TSTRB       , -- In  :
+            TSTRB           => TXD_TKEEP       , -- In  :
             TKEEP           => TXD_TKEEP       , -- In  :
             TUSER           => TXD_TUSER       , -- In  :
             TDEST           => TXD_TDEST       , -- In  :
@@ -588,13 +589,13 @@ begin
             CSR_IRQ         => CSR_IRQ         , -- Out :
             RXD_CLK         => RXD_CLK         , -- In  :
             RXD_TDATA       => RXD_TDATA       , -- In  :
-            RXD_TSTRB       => RXD_TSTRB       , -- In  :
+            RXD_TKEEP       => RXD_TKEEP       , -- In  :
             RXD_TLAST       => RXD_TLAST       , -- In  :
             RXD_TVALID      => RXD_TVALID      , -- In  :
             RXD_TREADY      => RXD_TREADY      , -- Out :
             TXD_CLK         => TXD_CLK         , -- In  :
             TXD_TDATA       => TXD_TDATA       , -- Out :
-            TXD_TSTRB       => TXD_TSTRB       , -- Out :
+            TXD_TKEEP       => TXD_TKEEP       , -- Out :
             TXD_TLAST       => TXD_TLAST       , -- Out :
             TXD_TVALID      => TXD_TVALID      , -- Out :
             TXD_TREADY      => TXD_TREADY        -- In  :

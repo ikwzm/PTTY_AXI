@@ -62,9 +62,15 @@ current_run -implementation [get_runs impl_1]
 #
 # Add files
 #
-add_files    -fileset sources_1 -norecurse {./work/src/ptty_axi4.vhd}
-add_files    -fileset sources_1 -norecurse {./work/src/ptty_pipework.vhd}
-set_property library PipeWork [get_files   {./work/src/ptty_pipework.vhd}]
+proc add_vhdl_file {fileset library_name file_name} {
+    set file     [file normalize $file_name]
+    set fileset  [get_filesets   $fileset  ] 
+    set file_obj [import_files -norecurse -fileset $fileset $file]
+    set_property "file_type" "VHDL"        $file_obj
+    set_property "library"   $library_name $file_obj
+}
+add_vhdl_file sources_1 PipeWork {./work/src/ptty_pipework.vhd}
+add_vhdl_file sources_1 WORK     {./work/src/ptty_axi4.vhd}
 #
 # Create IP-Package project
 #
@@ -81,7 +87,7 @@ set_property supported_families {zynq Production virtex7 Production qvirtex7 Pro
 #
 # Set Core Version
 #
-set_property core_revision 1 [ipx::current_core]
+set_property core_revision 2 [ipx::current_core]
 #
 # Generate files
 #

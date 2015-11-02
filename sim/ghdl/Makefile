@@ -4,8 +4,10 @@ GHDLFLAGS=--mb-comments -P../../PipeWork/sim/ghdl -P../../Dummy_Plug/sim/ghdl/du
 SRC_MAIN_PATH = ../../src/main/vhdl
 SRC_TEST_PATH = ../../src/test/vhdl
 
-TEST_BENCH    = test_1 \
-                test_2 \
+TEST_BENCH    = test_1_1 \
+                test_1_4 \
+                test_2_1 \
+                test_2_4 \
                 $(END_LIST)
 
 all: $(TEST_BENCH)
@@ -15,18 +17,32 @@ all: $(TEST_BENCH)
 clean:
 	rm -f *.o *.cf $(TEST_BENCH)
 
-test_1       : test_1.o ../../src/test/scenarios/test_1.snr
+test_1_1       : test_1_1.o ../../src/test/scenarios/test_1_1.snr
 	 $(GHDL) -e $(GHDLFLAGS) --work=work $@
 	-$(GHDL) -r $(GHDLFLAGS) --work=work $@
 
-test_2       : test_2.o ../../src/test/scenarios/test_2.snr
+test_1_4       : test_1_4.o ../../src/test/scenarios/test_1_4.snr
 	 $(GHDL) -e $(GHDLFLAGS) --work=work $@
 	-$(GHDL) -r $(GHDLFLAGS) --work=work $@
 
-test_1.o       : test_1.vhd test_bench.o ptty_axi4.o ptty_tx.o ptty_rx.o ptty_rxd_buf.o ptty_txd_buf.o
+test_2_1       : test_2_1.o ../../src/test/scenarios/test_2.snr
+	 $(GHDL) -e $(GHDLFLAGS) --work=work $@
+	-$(GHDL) -r $(GHDLFLAGS) --work=work $@
+
+test_2_4       : test_2_4.o ../../src/test/scenarios/test_2.snr
+	 $(GHDL) -e $(GHDLFLAGS) --work=work $@
+	-$(GHDL) -r $(GHDLFLAGS) --work=work $@
+
+test_1_1.o     : test_1_1.vhd test_bench.o ptty_axi4.o ptty_tx.o ptty_rx.o ptty_rxd_buf.o ptty_txd_buf.o
 	 $(GHDL) -a $(GHDLFLAGS) --work=work $<
 
-test_2.o       : test_2.vhd test_bench.o ptty_axi4.o ptty_tx.o ptty_rx.o ptty_rxd_buf.o ptty_txd_buf.o
+test_1_4.o     : test_1_4.vhd test_bench.o ptty_axi4.o ptty_tx.o ptty_rx.o ptty_rxd_buf.o ptty_txd_buf.o
+	 $(GHDL) -a $(GHDLFLAGS) --work=work $<
+
+test_2_1.o     : test_2_1.vhd test_bench.o ptty_axi4.o ptty_tx.o ptty_rx.o ptty_rxd_buf.o ptty_txd_buf.o
+	 $(GHDL) -a $(GHDLFLAGS) --work=work $<
+
+test_2_4.o     : test_2_4.vhd test_bench.o ptty_axi4.o ptty_tx.o ptty_rx.o ptty_rxd_buf.o ptty_txd_buf.o
 	 $(GHDL) -a $(GHDLFLAGS) --work=work $<
 
 test_bench.o   : $(SRC_TEST_PATH)/test_bench.vhd
