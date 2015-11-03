@@ -2,7 +2,7 @@
 --!     @file    ptty_rxd_buf.vhd
 --!     @brief   Receive Data Buffer for PTTY_AXI4
 --!     @version 0.2.0
---!     @date    2015/11/2
+--!     @date    2015/11/3
 --!     @author  Ichiro Kawazome <ichiro_k@ca2.so-net.ne.jp>
 -----------------------------------------------------------------------------------
 --
@@ -201,13 +201,18 @@ begin
         -- 入力側のデータ幅が１バイトの場合...
         ---------------------------------------------------------------------------
         I1: if (I_BYTES = 1) generate
+            -----------------------------------------------------------------------
+            -- i_push_size  : 書き込みバイト数
+            -- i_push_last  : 最後の書き込みであることを示す信号
+            -- i_push_valid : 書き込み信号
+            -----------------------------------------------------------------------
             i_push_size  <= std_logic_vector(to_unsigned(1, i_push_size'length)) when I_STRB(0) = '1' else
                             std_logic_vector(to_unsigned(0, i_push_size'length));
             i_push_last  <= I_LAST;
             i_push_valid <= '1' when (I_VALID = '1' and buf_ready) else '0';
             I_READY      <= '1' when (intake_ready) else '0';
             -----------------------------------------------------------------------
-            -- buf_wdata : バッファ書き込みデータ
+            -- buf_wdata    : バッファ書き込みデータ
             -----------------------------------------------------------------------
             process (I_DATA) begin
                 for i in buf_we'range loop
@@ -215,7 +220,7 @@ begin
                 end loop;
             end process;
             -----------------------------------------------------------------------
-            -- buf_we    : バッファ書き込みイネーブル信号(バイト単位)
+            -- buf_we       : バッファ書き込みイネーブル信号(バイト単位)
             -----------------------------------------------------------------------
             process (buf_waddr, i_push_valid, I_STRB) begin
                 for i in buf_we'range loop
@@ -244,11 +249,13 @@ begin
         I2: if (I_BYTES > 1) generate
             signal    queue_valid    :  std_logic;
             signal    queue_ready    :  std_logic;
-            signal    queue_flush    :  std_logic;
             signal    queue_last     :  std_logic;
             signal    queue_strb     :  std_logic_vector(2**(BUF_WIDTH  )-1 downto 0);
-        begin 
-            QUEUE: REDUCER
+        begin
+            -----------------------------------------------------------------------
+            -- 入力キュー兼バイトシフタ
+            -----------------------------------------------------------------------
+            QUEUE: REDUCER                                -- 
                 generic map (                             --
                     WORD_BITS   => 8                    , --
                     STRB_BITS   => 1                    , --
@@ -260,7 +267,7 @@ begin
                     O_SHIFT_MIN => 2**BUF_WIDTH         , --
                     O_SHIFT_MAX => 2**BUF_WIDTH         , --
                     I_JUSTIFIED => 1                    , --
-                    FLUSH_ENABLE=> 1                      --
+                    FLUSH_ENABLE=> 1                      -- DONEの替わりにFLUSHを使う.
                 )                                         --
                 port map (                                --
                     CLK         => I_CLK                , -- In  :
@@ -270,21 +277,31 @@ begin
                     VALID       => open                 , -- Out :
                     I_DATA      => I_DATA               , -- In  :
                     I_STRB      => I_STRB               , -- In  :
-                    I_DONE      => I_LAST               , -- In  :
+                    I_DONE      => '0'                  , -- In  :
                     I_FLUSH     => I_LAST               , -- In  :
                     I_VAL       => I_VALID              , -- In  :
                     I_RDY       => I_READY              , -- Out :
                     O_DATA      => buf_wdata            , -- Out :
                     O_STRB      => queue_strb           , -- Out :
-                    O_DONE      => queue_last           , -- Out :
-                    O_FLUSH     => queue_flush          , -- Out :
+                    O_DONE      => open                 , -- Out :
+                    O_FLUSH     => queue_last           , -- Out :
                     O_VAL       => queue_valid          , -- Out :
                     O_RDY       => queue_ready            -- In  :
                 );                                        --
             queue_ready  <= '1' when (intake_ready = TRUE) else '0';
+            -----------------------------------------------------------------------
+            -- buf_we       : バッファ書き込みイネーブル信号(バイト単位)
+            -----------------------------------------------------------------------
+            buf_we       <= queue_strb when (i_push_valid = '1') else (others => '0');
+            -----------------------------------------------------------------------
+            -- i_push_last  : 最後の書き込みであることを示す信号
+            -- i_push_valid : 書き込み信号
+            -----------------------------------------------------------------------
             i_push_valid <= '1' when (queue_valid = '1' and buf_ready) else '0';
             i_push_last  <= '1' when (queue_last  = '1') else '0';
-            buf_we       <= queue_strb when (i_push_valid = '1') else (others => '0');
+            -----------------------------------------------------------------------
+            -- i_push_size  : 書き込みバイト数
+            -----------------------------------------------------------------------
             process (queue_strb)
                 variable i_size  : integer range 0 to I_BYTES;
                 function count_bits(I: std_logic_vector) return integer is
