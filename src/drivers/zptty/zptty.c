@@ -86,6 +86,7 @@ struct zptty_device_data {
     unsigned int         rx_buf_size;
     unsigned int         tx_buf_size;
     unsigned int         debug;
+    unsigned int         rx_count;
 };
 
 /********************************************************************************
@@ -239,6 +240,45 @@ inline void zptty_rx_remove_from_buf(struct zptty_device_data* this, int size)
     (buf_count)  = (unsigned int)((regs_val      ) & 0xFFFF);                        \
     (buf_offset) = (unsigned int)((regs_val >> 16) & 0xFFFF);                        \
 }
+/********************************************************************************
+ * zptty tty dev_dbg_buf
+ ********************************************************************************/
+static void dev_dbg_buf(struct device* dev, const char* func, unsigned char* buf, unsigned int length)
+{
+    switch(length) {
+        case 0 : break;
+        case 1 : dev_dbg(dev, "%s [%02X]\n",
+                         func, buf[0]);
+                 break;
+        case 2 : dev_dbg(dev, "%s [%02X,%02X]\n",
+                         func, buf[0],buf[1]);
+                 break;
+        case 3 : dev_dbg(dev, "%s [%02X,%02X,%02X]\n",
+                         func, buf[0],buf[1],buf[2]);
+                 break;
+        case 4 : dev_dbg(dev, "%s [%02X,%02X,%02X,%02X]\n",
+                         func, buf[0], buf[1],buf[2],buf[3]);
+                 break;
+        case 5 : dev_dbg(dev, "%s [%02X,%02X,%02X,%02X,%02X]\n",
+                         func, buf[0],buf[1],buf[2],buf[3],buf[4]);
+                 break;
+        case 6 : dev_dbg(dev, "%s [%02X,%02X,%02X,%02X,%02X,%02X]\n",
+                         func, buf[0],buf[1],buf[2],buf[3],buf[4],buf[5]);
+                 break;
+        case 7 : dev_dbg(dev, "%s [%02X,%02X,%02X,%02X,%02X,%02X,%02X]\n",
+                         func, buf[0],buf[1],buf[2],buf[3],buf[4],buf[5],buf[6]);
+                 break;
+        case 8 : dev_dbg(dev, "%s [%02X,%02X,%02X,%02X,%02X,%02X,%02X,%02X]\n",
+                         func, buf[0],buf[1],buf[2],buf[3],buf[4],buf[5],buf[6],buf[7]);
+                 break;
+        case 9 : dev_dbg(dev, "%s [%02X,%02X,%02X,%02X,%02X,%02X,%02X,%02X,%02X]\n",
+                         func, buf[0],buf[1],buf[2],buf[3],buf[4],buf[5],buf[6],buf[7],buf[8]);
+                 break;
+        default: dev_dbg(dev, "%s [%02X,%02X,%02X,%02X,%02X,%02X,%02X,%02X,%02X...]\n",
+                         func, buf[0],buf[1],buf[2],buf[3],buf[4],buf[5],buf[6],buf[7],buf[8]);
+                 break;
+    }
+}
 
 /********************************************************************************
  * zptty tty interrupt service routeins.
@@ -304,7 +344,6 @@ static void zptty_tty_rx_irq_work(struct work_struct* work)
 #endif
         while(1) {
             unsigned int   received_size;
-            unsigned int   remain_size;
             unsigned int   buf_offset;
 
             zptty_rx_get_buf_status(this, buf_offset, received_size);
@@ -314,28 +353,21 @@ static void zptty_tty_rx_irq_work(struct work_struct* work)
             if (received_size == 0)
                 break;
 
-            remain_size = received_size;
+         // dev_dbg_buf(tty->dev, __func__, (unsigned char*)(this->regs_addr+buf_offset), received_size);
 
-            while (remain_size > 0) {
-                u32*         word_ptr  = (u32*)(this->regs_addr + (buf_offset & ~(0x03)));
-                u32          word_data = *word_ptr;
-                unsigned int word_pos  = buf_offset & (0x3);
-                while ((word_pos < 4) && (remain_size > 0)) {
-                    unsigned char ch = (unsigned char)((word_data >> (word_pos*8)) & 0xFF);
-                    tty_insert_flip_char(tty_p, ch, TTY_NORMAL);
-                    buf_offset++;
-                    word_pos++;
-                    remain_size--;
-                }
-            }
+            tty_insert_flip_string(tty_p, (char*)(this->regs_addr + buf_offset), received_size);
+
             zptty_rx_remove_from_buf(this, received_size);
+
             tty_flip_buffer_push(tty_p);
+
+            this->rx_count += received_size;
         }
     }
 
     zptty_rx_interrupt_enable(this);
 
-    dev_dbg(tty->dev, "%s done\n", __func__);
+    dev_dbg(tty->dev, "%s done(%d)\n", __func__, this->rx_count);
 
  done:
     return;
@@ -392,6 +424,7 @@ static int zptty_port_activate(struct tty_port* port, struct tty_struct* tty)
         zptty_rx_reset_off(this);
         zptty_rx_interrupt_enable(this);
         zptty_tx_reset_off(this);
+        this->rx_count = 0;
     }
     spin_unlock_irqrestore(&this->irq_lock, irq_flags);
 
@@ -550,14 +583,7 @@ static int zptty_tty_write(struct tty_struct *tty, const unsigned char* buf, int
     unsigned char*            buf_ptr;
 
     dev_dbg(tty->dev, "%s(tty=%pK,buf=%pK,count=%d)\n", __func__, tty, buf, count);
-    if (count == 1) 
-      dev_dbg(tty->dev, "%s(buf=[%02X])\n", __func__, buf[0]);
-
-    if (count == 2) 
-      dev_dbg(tty->dev, "%s(buf=[%02X,%02X])\n", __func__, buf[0], buf[1]);
-
-    if (count > 2) 
-      dev_dbg(tty->dev, "%s(buf=[%02X,%02X,%02X...])\n", __func__, buf[0], buf[1], buf[2]);
+    // dev_dbg_buf(tty->dev, __func__, (unsigned char*)buf, count);
 
     if (this == NULL)
         return -EL3HLT;
