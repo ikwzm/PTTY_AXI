@@ -134,7 +134,7 @@ set_interface_property ARESETn EXPORT_OF           ""
 set_interface_property ARESETn PORT_NAME_MAP       ""
 set_interface_property ARESETn CMSIS_SVD_VARIABLES ""
 set_interface_property ARESETn SVD_ADDRESS_GROUP   ""
-add_interface_port     ARESETn ARESETn reset Input 1
+add_interface_port     ARESETn ARESETn reset_n Input 1
 # 
 # connection point RXD_CLK
 # 
