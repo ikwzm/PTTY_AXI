@@ -171,6 +171,12 @@ set_interface_property CSR_IRQ PORT_NAME_MAP              ""
 set_interface_property CSR_IRQ CMSIS_SVD_VARIABLES        ""
 set_interface_property CSR_IRQ SVD_ADDRESS_GROUP          ""
 add_interface_port     CSR_IRQ CSR_IRQ irq Output 1
+#
+# for sopc2dts(SOPC to Device Tree File)
+#
+set_module_assignment embeddedsw.dts.vendor "ikwzm"
+set_module_assignment embeddedsw.dts.name   "zptty-0.10.a"
+set_module_assignment embeddedsw.dts.group  "zptty"
 # 
 # Elaboration callback
 #
