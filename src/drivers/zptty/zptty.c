@@ -1,6 +1,6 @@
 /********************************************************************************
  *
- *       Copyright (C) 2015 Ichiro Kawazome
+ *       Copyright (C) 2015-2016 Ichiro Kawazome
  *       All rights reserved.
  * 
  *       Redistribution and use in source and binary forms, with or without
@@ -416,7 +416,11 @@ static int zptty_port_activate(struct tty_port* port, struct tty_struct* tty)
     struct zptty_device_data* this = port->tty->driver_data;
     unsigned long             irq_flags;
     int                       retval = 0;
-
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20) && LINUX_VERSION_CODE < KERNEL_VERSION(4,1,0))
+    unsigned long             irq_req_flags = IRQF_DISABLED | IRQF_SHARED;
+#else 
+    unsigned long             irq_req_flags = IRQF_SHARED;
+#endif
     dev_dbg(port->tty->dev, "%s\n", __func__);
 
     spin_lock_irqsave(&this->irq_lock, irq_flags);
@@ -428,7 +432,7 @@ static int zptty_port_activate(struct tty_port* port, struct tty_struct* tty)
     }
     spin_unlock_irqrestore(&this->irq_lock, irq_flags);
 
-    if (request_irq(this->irq, zptty_irq, IRQF_DISABLED | IRQF_SHARED, dev_name(port->tty->dev), this) != 0) {
+    if (request_irq(this->irq, zptty_irq, irq_req_flags, dev_name(port->tty->dev), this) != 0) {
         dev_err(port->tty->dev, "request_irq(%pr) failed\n", this->irq_res);
         retval = -ENODEV;
         goto failed;
@@ -891,7 +895,7 @@ static struct platform_driver zptty_platform_driver = {
     .driver = {
         .owner = THIS_MODULE,
         .name  = DRIVER_NAME,
-        .of_match_table = zptty_of_match,
+        .of_match_table = of_match_ptr(zptty_of_match),
     },
 };
 
