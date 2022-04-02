@@ -1,6 +1,6 @@
 /********************************************************************************
  *
- *       Copyright (C) 2015-2016 Ichiro Kawazome
+ *       Copyright (C) 2015-2022 Ichiro Kawazome
  *       All rights reserved.
  * 
  *       Redistribution and use in source and binary forms, with or without
@@ -794,8 +794,7 @@ static int zptty_device_probe(struct platform_device *pdev)
             goto failed;
         }
         done |= DONE_MEM_REGION;
-
-        this->regs_addr = ioremap_nocache(regs_addr, regs_size);
+        this->regs_addr = ioremap(regs_addr, regs_size);
         if (this->regs_addr == NULL) {
           dev_err(&pdev->dev, "ioremap(%pr) failed\n", this->regs_res);
             goto failed;
